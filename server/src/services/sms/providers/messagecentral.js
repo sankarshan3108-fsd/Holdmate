@@ -1,15 +1,23 @@
 /**
  * Message Central VerifyNow (India).
  * Message Central generates, sends and checks the code; we only store its verificationId.
- * Docs: https://cpaas.messagecentral.com  (auth/v1 token + verification/v3 send/validateOtp)
+ *
+ * Auth (in order of preference):
+ *   1. MC_AUTH_TOKEN: the ready-made token from console.messagecentral.com → Developer Guide → API Credentials.
+ *      Used directly in the "authToken" header; the token API is never called.
+ *   2. MC_CUSTOMER_ID + MC_KEY (Base64 password): a token is fetched from the token API, cached in memory
+ *      and refreshed once on 401.
  */
 const env = require('../../../config/env');
 const { request, ProviderError } = require('../http');
 
 const BASE = 'https://cpaas.messagecentral.com';
-const TOKEN_MAX_AGE_MS = 12 * 60 * 60 * 1000; // refresh at least every 12 h (also refreshed on 401)
+const TOKEN_MAX_AGE_MS = 12 * 60 * 60 * 1000; // generated tokens: refresh at least every 12 h (and on 401)
+const EXPIRED_MSG = 'Message Central auth token expired or invalid — copy a new one from console.messagecentral.com → Developer Guide → API Credentials';
 
-let cached = null; // { token, at } — kept in memory only, never logged
+let cached = null; // generated token { token, at }: memory only, never logged
+
+const usingStaticToken = () => !!env.MC_AUTH_TOKEN;
 
 /** Response code can be at the top level or inside data. */
 const mcCode = (r) => {
@@ -19,10 +27,11 @@ const mcCode = (r) => {
 };
 const mcMessage = (r) => {
   const j = r.json || {};
-  return (j.data && j.data.errorMessage) || j.message || j.errorMessage || (r.text || '').slice(0, 120);
+  return (j.data && j.data.errorMessage) || j.message || j.error || j.errorMessage || (r.text || '').slice(0, 120);
 };
 
-async function getToken(force = false) {
+/** Token from the token API (fallback when MC_AUTH_TOKEN is empty). */
+async function fetchToken(force = false) {
   if (!force && cached && Date.now() - cached.at < TOKEN_MAX_AGE_MS) return cached.token;
   const url = `${BASE}/auth/v1/authentication/token?customerId=${encodeURIComponent(env.MC_CUSTOMER_ID)}`
     + `&key=${encodeURIComponent(env.MC_KEY)}&scope=NEW&country=91`;
@@ -36,10 +45,23 @@ async function getToken(force = false) {
   return token;
 }
 
-/** Call with the cached token; on 401 get a fresh token and retry once. */
+async function getToken(force = false) {
+  if (usingStaticToken()) return env.MC_AUTH_TOKEN;
+  return fetchToken(force);
+}
+
+/**
+ * Run a request with the auth token.
+ * Static token + 401 → clear "expired or invalid" error (nothing to refresh).
+ * Generated token + 401 → fetch a new token and retry once.
+ */
 async function withToken(doRequest) {
   let r = await doRequest(await getToken());
-  if (r.status === 401) r = await doRequest(await getToken(true));
+  if (r.status === 401 && !usingStaticToken()) r = await doRequest(await getToken(true));
+  if (r.status === 401) {
+    if (usingStaticToken()) console.error(`[sms] ${EXPIRED_MSG}`);
+    throw new ProviderError(usingStaticToken() ? EXPIRED_MSG : 'Message Central rejected the generated auth token (401)', { status: 401 });
+  }
   return r;
 }
 
@@ -58,11 +80,26 @@ const VERIFY_REASONS = {
   800: 'limit'        // maximum limit reached
 };
 
+/**
+ * Check that the credentials are accepted WITHOUT sending an SMS:
+ * calls validateOtp with a dummy verificationId. A valid token gets a normal
+ * "invalid verification ID"-style answer; an invalid one gets 401.
+ */
+async function checkAuth() {
+  const mode = usingStaticToken() ? 'MC_AUTH_TOKEN' : 'MC_CUSTOMER_ID + MC_KEY';
+  if (!usingStaticToken()) await fetchToken(true);
+  const url = `${BASE}/verification/v3/validateOtp?verificationId=0&code=000000`;
+  const r = await withToken((token) => request(url, { method: 'GET', headers: { authToken: token } }));
+  return { mode, httpStatus: r.status, responseCode: mcCode(r), message: mcMessage(r) };
+}
+
 module.exports = {
   name: 'messagecentral',
   channel: 'sms',
   managesCode: true,
   getToken,
+  checkAuth,
+  usingStaticToken,
 
   async send(phone) {
     const url = `${BASE}/verification/v3/send?countryCode=91&mobileNumber=${phone}&flowType=SMS&otpLength=6`;

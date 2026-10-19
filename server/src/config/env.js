@@ -25,6 +25,7 @@ const env = {
   SERVICE_RADIUS_KM: num(process.env.SERVICE_RADIUS_KM, 15),
   // SMS / OTP provider: console | messagecentral | msg91 | fast2sms (empty = console)
   SMS_PROVIDER: (process.env.SMS_PROVIDER || 'console').trim().toLowerCase(),
+  MC_AUTH_TOKEN: (process.env.MC_AUTH_TOKEN || '').trim(), // preferred: ready token from the dashboard
   MC_CUSTOMER_ID: (process.env.MC_CUSTOMER_ID || '').trim(),
   MC_KEY: (process.env.MC_KEY || '').trim(),
   MSG91_AUTH_KEY: (process.env.MSG91_AUTH_KEY || '').trim(),
@@ -54,7 +55,12 @@ env.assertRequired = function assertRequired() {
   if (!smsKeys[env.SMS_PROVIDER]) {
     problems.push(`SMS_PROVIDER "${env.SMS_PROVIDER}" is not supported. Use console, messagecentral, msg91 or fast2sms.`);
   } else {
-    smsKeys[env.SMS_PROVIDER].forEach((k) => { if (!env[k]) problems.push(`${k} is required when SMS_PROVIDER=${env.SMS_PROVIDER}.`); });
+    const usesStaticMcToken = env.SMS_PROVIDER === 'messagecentral' && env.MC_AUTH_TOKEN;
+    if (!usesStaticMcToken) {
+      const missing = smsKeys[env.SMS_PROVIDER].filter((k) => !env[k]);
+      if (missing.length && env.SMS_PROVIDER === 'messagecentral') problems.push('Set MC_AUTH_TOKEN (or both MC_CUSTOMER_ID and MC_KEY) when SMS_PROVIDER=messagecentral.');
+      else missing.forEach((k) => problems.push(`${k} is required when SMS_PROVIDER=${env.SMS_PROVIDER}.`));
+    }
   }
   if (env.isProd && env.SMS_PROVIDER === 'console') problems.push('SMS_PROVIDER=console is for development only. Set a real SMS provider in production.');
   if (problems.length) {
