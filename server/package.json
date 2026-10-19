@@ -1,13 +1,14 @@
 {
   "name": "holdmate-server",
   "version": "1.0.0",
-  "description": "HoldMate backend — Express + MongoDB + Socket.IO for the smart mobile cloakroom",
+  "description": "HoldMate backend \u2014 Express + MongoDB + Socket.IO for the smart mobile cloakroom",
   "main": "src/index.js",
   "private": true,
   "scripts": {
     "dev": "nodemon --watch src src/index.js",
     "start": "node src/index.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "sms:check": "node src/services/sms/check.js"
   },
   "engines": {
     "node": ">=18"

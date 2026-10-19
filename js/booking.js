@@ -120,7 +120,99 @@
   HM.esc = esc;
   const fmtTime = (iso) => new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const fmtPhone = (p) => (p && p.length === 10 ? `+91 ${p.slice(0, 5)} ${p.slice(5)}` : p || '');
-  const isLocalApi = /localhost|127\.0\.0\.1/.test(HM.API_BASE || location.hostname);
+  const maskPhone = (p) => (p && p.length === 10 ? `+91 XXXXX XX${p.slice(-3)}` : p || '');
+
+  /* ==========================================================================
+     6-BOX OTP INPUT: auto-advances, supports paste and SMS autofill
+     (autocomplete="one-time-code"), auto-submits when all 6 digits are in.
+     ========================================================================== */
+  HM.otpBoxes = function otpBoxes(container, { onComplete } = {}) {
+    container.innerHTML = '';
+    const boxes = Array.from({ length: 6 }, (_, i) => {
+      const b = document.createElement('input');
+      b.className = 'otp-box';
+      b.type = 'text';
+      b.inputMode = 'numeric';
+      b.pattern = '[0-9]*';
+      b.maxLength = 6; // lets autofill / typing-over deliver several digits into one box
+      b.autocomplete = i === 0 ? 'one-time-code' : 'off';
+      b.setAttribute('aria-label', `Digit ${i + 1} of 6`);
+      container.appendChild(b);
+      return b;
+    });
+    let lastSubmitted = '';
+    const value = () => boxes.map((b) => b.value).join('');
+    const refresh = () => { boxes.forEach((b) => b.classList.toggle('is-filled', !!b.value)); container.classList.remove('is-invalid'); };
+    function check() {
+      const v = value();
+      if (/^\d{6}$/.test(v) && v !== lastSubmitted) { lastSubmitted = v; if (onComplete) onComplete(v); }
+    }
+    function fill(from, digits) {
+      let i = from;
+      for (const d of digits) { if (i > 5) break; boxes[i].value = d; i++; }
+      refresh();
+      boxes[Math.min(i, 5)].focus();
+      check();
+    }
+    boxes.forEach((b, i) => {
+      b.addEventListener('input', () => {
+        const digits = b.value.replace(/\D/g, '');
+        if (!digits) { b.value = ''; refresh(); return; }
+        if (digits.length > 1) { fill(digits.length >= 6 ? 0 : i, digits.slice(0, 6)); return; }
+        b.value = digits;
+        refresh();
+        if (i < 5) boxes[i + 1].focus();
+        check();
+      });
+      b.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !b.value && i > 0) { e.preventDefault(); boxes[i - 1].value = ''; boxes[i - 1].focus(); refresh(); }
+        else if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); boxes[i - 1].focus(); }
+        else if (e.key === 'ArrowRight' && i < 5) { e.preventDefault(); boxes[i + 1].focus(); }
+        else if (e.key === 'Enter') { e.preventDefault(); lastSubmitted = ''; check(); }
+      });
+      b.addEventListener('paste', (e) => {
+        const t = ((e.clipboardData || window.clipboardData).getData('text') || '').replace(/\D/g, '');
+        if (!t) return;
+        e.preventDefault();
+        fill(t.length >= 6 ? 0 : i, t.slice(0, 6));
+      });
+      b.addEventListener('focus', () => b.select());
+    });
+    return {
+      value,
+      clear() { boxes.forEach((b) => { b.value = ''; }); lastSubmitted = ''; refresh(); },
+      focus() { (boxes.find((b) => !b.value) || boxes[5]).focus(); },
+      invalid() { container.classList.remove('is-invalid'); void container.offsetWidth; container.classList.add('is-invalid'); lastSubmitted = ''; },
+      busy(on) { container.classList.toggle('is-busy', on); boxes.forEach((b) => { b.disabled = on; }); }
+    };
+  };
+
+  /** Ask the server to send a code. Resolves { resendAt, channel }; on a cooldown error, err.resendAt is set. */
+  async function requestCode(phone) {
+    try {
+      const r = await HM.auth.requestOtp(phone);
+      return { resendAt: Date.now() + (r.resendAfterSeconds || 60) * 1000, channel: r.channel };
+    } catch (e) {
+      if (e.code === 'OTP_TOO_SOON') {
+        const s = (e.details && e.details[0] && e.details[0].retryAfterSeconds) || 60;
+        e.resendAt = Date.now() + s * 1000;
+      }
+      throw e;
+    }
+  }
+
+  /** "Resend code in 42s" countdown on a button. */
+  function resendCountdown(btn, until) {
+    clearInterval(btn._cd);
+    const tick = () => {
+      const s = Math.ceil((until - Date.now()) / 1000);
+      btn.disabled = s > 0;
+      btn.textContent = s > 0 ? `Resend code in ${s}s` : 'Resend code';
+      if (s <= 0) clearInterval(btn._cd);
+    };
+    tick();
+    btn._cd = setInterval(tick, 1000);
+  }
 
   /** Price breakdown rows from a server quote */
   function breakdownRows(q) {
@@ -328,9 +420,10 @@
   const prog = $$('.bk-progress li', modal);
   const f = {
     from: $('#b-from'), to: $('#b-to'), time: $('#b-time'), service: $('#b-service'),
-    bags: $('#b-bags'), kg: $('#b-kg'), hours: $('#b-hours'), name: $('#b-name'), phone: $('#b-phone'), otp: $('#b-otp')
+    bags: $('#b-bags'), kg: $('#b-kg'), hours: $('#b-hours'), name: $('#b-name'), phone: $('#b-phone')
   };
-  const state = { step: 1, from: null, to: null, booking: null, phone: null, resendAt: 0 };
+  const state = { step: 1, from: null, to: null, booking: null, phone: null, channel: null, resendAt: 0, verifying: false };
+  const otpUi = HM.otpBoxes($('#b-otp-boxes'), { onComplete: () => verifyBookingOtp() });
   const PHONE_RE = /^(?:\+?91|0)?[6-9]\d{9}$/;
   const cleanPhone = (v) => v.replace(/[\s\-()]/g, '').replace(/^(\+91|91|0)(?=\d{10}$)/, '');
 
@@ -352,8 +445,9 @@
     $('#bk-title').textContent = n === 3 ? "You're all set" : n === 'otp' ? 'Verify your number' : 'Book a pickup';
     $('.modal__panel', modal).scrollTop = 0;
     setTimeout(() => {
-      const target = n === 3 ? $('#bd-track') : n === 'otp' ? f.otp : $(`.bk-step[data-step="${n}"] input:not([readonly]), .bk-step[data-step="${n}"] button`, modal);
-      if (target) target.focus({ preventScroll: true });
+      const target = n === 3 ? $('#bd-track') : n === 'otp' ? null : $(`.bk-step[data-step="${n}"] input:not([readonly]), .bk-step[data-step="${n}"] button`, modal);
+      if (n === 'otp') otpUi.focus();
+      else if (target) target.focus({ preventScroll: true });
     }, 60);
   }
 
@@ -404,7 +498,6 @@
       f.kg.value = pre.kg || (pre.service === 'events' ? 300 : 15);
       f.hours.value = pre.hours || 4;
       $('#bk-quote').innerHTML = '';
-      $('#b-otp-dev').hidden = !isLocalApi;
       goStep(1);
       HM.layer.open(modal);
       await HM.auth.ready;
@@ -525,66 +618,86 @@
   async function startOtp(errEl) {
     const btn = $('#bk-confirm');
     const phone = cleanPhone(f.phone.value);
+    let resendAt;
+    let note = '';
+    if (state.phone === phone && state.resendAt > Date.now()) {
+      // came back via "Change number" with the same number: the code already sent is still valid
+      return showModalCode(phone, state.resendAt, ' A code was sent moments ago.');
+    }
     busy(btn, true, 'Sending code…');
     try {
-      await HM.auth.requestOtp(phone);
-      state.resendAt = Date.now() + 30000;
+      const r = await requestCode(phone);
+      resendAt = r.resendAt;
+      state.channel = r.channel;
     } catch (e) {
-      if (e.code !== 'OTP_TOO_SOON' || state.phone !== phone) { errEl.textContent = e.message; return; }
+      if (e.code !== 'OTP_TOO_SOON') { errEl.textContent = e.message; return; }
+      resendAt = e.resendAt; // a code was sent moments ago: let them enter it
+      note = ' A code was sent moments ago.';
     } finally {
       busy(btn, false);
     }
-    state.phone = phone;
-    f.otp.value = '';
-    $('#b-err-otp').textContent = '';
-    $('#b-otp-msg').textContent = `We sent a 6-digit code to ${fmtPhone(phone)}. It is valid for 5 minutes.`;
-    goStep('otp');
-    resendCountdown();
+    showModalCode(phone, resendAt, note);
   }
 
-  let countdown = null;
-  function resendCountdown() {
-    const b = $('#bk-otp-resend');
-    clearInterval(countdown);
-    const tick = () => {
-      const s = Math.ceil((state.resendAt - Date.now()) / 1000);
-      b.disabled = s > 0;
-      b.textContent = s > 0 ? `Resend code in ${s}s` : 'Resend code';
-      if (s <= 0) clearInterval(countdown);
-    };
-    tick();
-    countdown = setInterval(tick, 1000);
+  function showModalCode(phone, resendAt, note) {
+    state.phone = phone;
+    state.resendAt = resendAt;
+    otpUi.clear();
+    $('#b-err-otp').textContent = '';
+    $('#b-otp-msg').textContent = `Code sent to ${maskPhone(phone)}.${note || ''}`;
+    $('#b-otp-dev').hidden = state.channel !== 'console';
+    goStep('otp');
+    resendCountdown($('#bk-otp-resend'), resendAt);
   }
+
   $('#bk-otp-resend').addEventListener('click', async () => {
+    const err = $('#b-err-otp');
+    err.textContent = '';
     try {
-      await HM.auth.requestOtp(state.phone);
-      state.resendAt = Date.now() + 30000;
-      resendCountdown();
-      HM.toast('A new code is on its way.');
-    } catch (e) { $('#b-err-otp').textContent = e.message; }
+      const r = await requestCode(state.phone);
+      state.channel = r.channel;
+      state.resendAt = r.resendAt;
+      $('#b-otp-dev').hidden = state.channel !== 'console';
+      otpUi.clear();
+      otpUi.focus();
+      resendCountdown($('#bk-otp-resend'), r.resendAt);
+      HM.toast(`New code sent to ${maskPhone(state.phone)}.`);
+    } catch (e) {
+      err.textContent = e.message;
+      if (e.resendAt) resendCountdown($('#bk-otp-resend'), e.resendAt);
+    }
   });
   $('#bk-otp-back').addEventListener('click', () => goStep(2, true));
-  f.otp.addEventListener('input', () => { f.otp.value = f.otp.value.replace(/\D/g, '').slice(0, 6); });
+  $('#bk-otp-verify').addEventListener('click', () => verifyBookingOtp());
 
-  $('#bk-otp-verify').addEventListener('click', async () => {
+  async function verifyBookingOtp() {
+    if (state.verifying) return;
     const err = $('#b-err-otp');
     const btn = $('#bk-otp-verify');
+    const code = otpUi.value();
     err.textContent = '';
-    invalid(f.otp, false);
-    if (!/^\d{6}$/.test(f.otp.value)) { invalid(f.otp, true); err.textContent = 'Enter the 6-digit code.'; f.otp.focus(); return; }
+    if (!/^\d{6}$/.test(code)) { otpUi.invalid(); err.textContent = 'Enter the 6-digit code.'; otpUi.focus(); return; }
+    state.verifying = true;
     busy(btn, true, 'Verifying…');
+    otpUi.busy(true);
     try {
-      await HM.auth.verifyOtp(state.phone, f.otp.value, f.name.value.trim());
+      await HM.auth.verifyOtp(state.phone, code, f.name.value.trim());
     } catch (e) {
-      invalid(f.otp, true);
+      otpUi.busy(false);
+      otpUi.invalid();
       err.textContent = e.message;
+      if (e.code === 'OTP_LOCKED' || e.code === 'OTP_EXPIRED' || e.code === 'OTP_USED') otpUi.clear();
+      otpUi.focus();
       busy(btn, false);
+      state.verifying = false;
       return;
     }
+    otpUi.busy(false);
     busy(btn, false);
+    state.verifying = false;
     HM.toast(`Logged in as ${fmtPhone(state.phone)}`, 'ok');
     createBooking(err, btn);
-  });
+  }
 
   async function createBooking(errEl, btn) {
     const d = details();
@@ -662,48 +775,122 @@
     const body = HM.openDrawer(`
       ${hero('My bookings', 'Log in with your mobile number to see, track and cancel your bookings.')}
       <form id="acct-form" novalidate>
-        <div class="field"><label for="a-phone">Mobile number</label><div class="field__row"><svg class="ic field__ic"><use href="#i-phone"/></svg><input id="a-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" data-autofocus /></div></div>
-        <div id="a-otp-wrap" hidden>
-          <div class="field"><label for="a-otp">6-digit code</label><div class="field__row"><svg class="ic field__ic"><use href="#i-key"/></svg><input id="a-otp" class="mono otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="------" /></div></div>
-          <div class="field"><label for="a-name">Your name (new customers)</label><div class="field__row"><svg class="ic field__ic"><use href="#i-user"/></svg><input id="a-name" autocomplete="name" placeholder="Optional" /></div></div>
-          ${isLocalApi ? '<p class="muted small dev-note">Development mode: the code is printed in the server console.</p>' : ''}
+        <div id="a-step-phone">
+          <div class="field"><label for="a-phone">Mobile number</label><div class="field__row"><svg class="ic field__ic"><use href="#i-phone"/></svg><input id="a-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" data-autofocus /></div></div>
+          <p class="field-error" id="a-err-phone" aria-live="polite"></p>
+          <button type="submit" class="btn btn--primary btn--block" id="a-send"><span>Send code</span></button>
         </div>
-        <p class="field-error" id="a-err" aria-live="polite"></p>
-        <button type="submit" class="btn btn--primary btn--block" id="a-submit"><span>Send code</span></button>
+        <div id="a-step-code" class="acct-code" hidden>
+          <div class="otp-intro">
+            <span class="otp-intro__ic"><svg class="ic"><use href="#i-phone"/></svg></span>
+            <div><b>Enter the 6-digit code</b><p class="muted small" id="a-code-msg"></p></div>
+          </div>
+          <div class="field"><label for="a-name">Your name (new customers)</label><div class="field__row"><svg class="ic field__ic"><use href="#i-user"/></svg><input id="a-name" autocomplete="name" placeholder="Optional" /></div></div>
+          <div class="field"><span class="label" id="a-otp-label">Verification code</span><div class="otp-boxes" id="a-otp-boxes" role="group" aria-labelledby="a-otp-label"></div></div>
+          <p class="muted small dev-note" id="a-dev" hidden>Development mode: the code is printed in the server console.</p>
+          <p class="field-error" id="a-err-code" aria-live="polite"></p>
+          <div class="otp-links">
+            <button type="button" class="link-btn small" id="a-resend">Resend code</button>
+            <button type="button" class="link-btn small" id="a-change">Change number</button>
+          </div>
+          <button type="button" class="btn btn--primary btn--block" id="a-verify"><span>Verify &amp; log in</span></button>
+        </div>
       </form>`);
-    const formEl = $('#acct-form', body);
+    const q = (sel) => $(sel, body);
     let phone = null;
-    $('#a-otp', body).addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
-    formEl.addEventListener('submit', async (e) => {
+    let verifying = false;
+    let sent = { phone: null, resendAt: 0 }; // last code sent from this panel
+    const boxes = HM.otpBoxes(q('#a-otp-boxes'), { onComplete: () => verify() });
+
+    function showCodeStep(msgNote, resendAt, channel) {
+      sent = { phone, resendAt };
+      q('#a-step-phone').hidden = true;
+      q('#a-step-code').hidden = false;
+      q('#a-code-msg').textContent = `Code sent to ${maskPhone(phone)}.${msgNote || ''}`;
+      if (channel) q('#a-dev').hidden = channel !== 'console';
+      boxes.clear();
+      setTimeout(() => boxes.focus(), 50);
+      resendCountdown(q('#a-resend'), resendAt);
+    }
+
+    q('#acct-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const err = $('#a-err', body);
-      const btn = $('#a-submit', body);
+      if (phone) return verify();
+      const err = q('#a-err-phone');
+      const btn = q('#a-send');
       err.textContent = '';
-      if (!phone) {
-        const raw = $('#a-phone', body).value;
-        if (!PHONE_RE.test(raw.replace(/[\s\-()]/g, ''))) { err.textContent = 'Please enter a valid 10-digit Indian mobile number.'; return; }
-        busy(btn, true, 'Sending…');
-        try {
-          await HM.auth.requestOtp(cleanPhone(raw));
-        } catch (ex) { err.textContent = ex.message; busy(btn, false); return; }
-        phone = cleanPhone(raw);
-        btn.dataset.label = 'Verify & log in';
+      const raw = q('#a-phone').value;
+      if (!PHONE_RE.test(raw.replace(/[\s\-()]/g, ''))) { err.textContent = 'Please enter a valid 10-digit Indian mobile number.'; return; }
+      const p = cleanPhone(raw);
+      if (sent.phone === p && sent.resendAt > Date.now()) { phone = p; showCodeStep(' A code was sent moments ago.', sent.resendAt); return; }
+      busy(btn, true, 'Sending…');
+      try {
+        const r = await requestCode(p);
+        phone = p;
+        showCodeStep('', r.resendAt, r.channel);
+      } catch (ex) {
+        if (ex.code === 'OTP_TOO_SOON') { phone = p; showCodeStep(' A code was sent moments ago.', ex.resendAt); }
+        else err.textContent = ex.message;
+      } finally {
         busy(btn, false);
-        $('#a-phone', body).readOnly = true;
-        $('#a-otp-wrap', body).hidden = false;
-        $('#a-otp', body).focus();
+      }
+    });
+
+    q('#a-resend').addEventListener('click', async () => {
+      const err = q('#a-err-code');
+      err.textContent = '';
+      try {
+        const r = await requestCode(phone);
+        q('#a-dev').hidden = r.channel !== 'console';
+        sent = { phone, resendAt: r.resendAt };
+        boxes.clear();
+        boxes.focus();
+        resendCountdown(q('#a-resend'), r.resendAt);
+        HM.toast(`New code sent to ${maskPhone(phone)}.`);
+      } catch (ex) {
+        err.textContent = ex.message;
+        if (ex.resendAt) resendCountdown(q('#a-resend'), ex.resendAt);
+      }
+    });
+
+    q('#a-change').addEventListener('click', () => {
+      phone = null;
+      clearInterval(q('#a-resend')._cd);
+      q('#a-step-code').hidden = true;
+      q('#a-step-phone').hidden = false;
+      q('#a-err-code').textContent = '';
+      q('#a-phone').focus();
+    });
+
+    q('#a-verify').addEventListener('click', () => verify());
+
+    async function verify() {
+      if (verifying || !phone) return;
+      const err = q('#a-err-code');
+      const btn = q('#a-verify');
+      const code = boxes.value();
+      err.textContent = '';
+      if (!/^\d{6}$/.test(code)) { boxes.invalid(); err.textContent = 'Enter the 6-digit code.'; boxes.focus(); return; }
+      verifying = true;
+      busy(btn, true, 'Verifying…');
+      boxes.busy(true);
+      try {
+        const nm = q('#a-name').value.trim();
+        await HM.auth.verifyOtp(phone, code, nm.length >= 2 ? nm : undefined);
+      } catch (ex) {
+        boxes.busy(false);
+        boxes.invalid();
+        err.textContent = ex.message;
+        if (ex.code === 'OTP_LOCKED' || ex.code === 'OTP_EXPIRED' || ex.code === 'OTP_USED') boxes.clear();
+        boxes.focus();
+        busy(btn, false);
+        verifying = false;
         return;
       }
-      const otp = $('#a-otp', body).value;
-      if (!/^\d{6}$/.test(otp)) { err.textContent = 'Enter the 6-digit code.'; return; }
-      busy(btn, true, 'Verifying…');
-      try {
-        const nm = $('#a-name', body).value.trim();
-        await HM.auth.verifyOtp(phone, otp, nm.length >= 2 ? nm : undefined);
-      } catch (ex) { err.textContent = ex.message; busy(btn, false); return; }
+      clearInterval(q('#a-resend')._cd);
       HM.toast('Logged in.', 'ok');
       renderBookings();
-    });
+    }
   }
 
   async function renderBookings() {

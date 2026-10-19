@@ -1014,3 +1014,18 @@ input[type="range"]:focus-visible { outline: 2px solid var(--sky); outline-offse
 .drawer .drawer__hero--sm { padding: 22px; margin-bottom: 18px; }
 .drawer .drawer__hero--sm h2 { font-size: 1.5rem; }
 .spinner--sm { width: 20px; height: 20px; border-width: 2px; margin: 24px auto; }
+
+/* ---------- 26. 6-BOX OTP INPUT ---------- */
+.otp-boxes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; max-width: 380px; }
+.otp-box { width: 100%; height: 58px; border: 0; border-radius: 12px; background: var(--white); box-shadow: inset 0 0 0 1.5px rgba(6, 20, 64, .16); text-align: center; font-family: var(--f-head); font-weight: 800; font-size: 1.5rem; color: var(--navy); caret-color: var(--royal); transition: box-shadow var(--d-fast) var(--ease), transform var(--d-fast) var(--ease); -moz-appearance: textfield; }
+.otp-box:focus { outline: none; box-shadow: inset 0 0 0 2px var(--royal), 0 0 0 4px rgba(37, 99, 235, .14); }
+.otp-box.is-filled { box-shadow: inset 0 0 0 1.5px var(--brand); background: var(--ice); }
+.otp-box.is-filled:focus { box-shadow: inset 0 0 0 2px var(--royal), 0 0 0 4px rgba(37, 99, 235, .14); }
+.otp-boxes.is-invalid .otp-box { box-shadow: inset 0 0 0 2px var(--err); }
+.otp-boxes.is-invalid { animation: otpShake .45s var(--ease); }
+.otp-boxes.is-busy { opacity: .6; pointer-events: none; }
+@keyframes otpShake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+.otp-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.otp-links .link-btn:disabled { color: var(--muted); text-decoration: none; cursor: default; }
+@media (max-width: 380px) { .otp-boxes { gap: 6px; } .otp-box { height: 50px; font-size: 1.25rem; } }
+.acct-code { display: flex; flex-direction: column; gap: 14px; }

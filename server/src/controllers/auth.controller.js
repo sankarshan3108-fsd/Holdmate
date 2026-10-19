@@ -1,57 +1,39 @@
 /**
- * Phone + OTP login.
+ * Phone + OTP login. Codes are sent and checked by services/sms (provider chosen by SMS_PROVIDER).
+ * The OTP is never returned in any response.
  */
-const bcrypt = require('bcryptjs');
-const { User, Otp } = require('../models');
+const { User } = require('../models');
 const AppError = require('../utils/AppError');
-const { randomDigits } = require('../utils/ids');
-const { sendLoginOtp } = require('../services/sms.service');
+const sms = require('../services/sms');
 const { setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 
-const OTP_TTL_MS = 5 * 60 * 1000;
-const RESEND_AFTER_MS = 30 * 1000;
-const MAX_ATTEMPTS = 5;
+const RESEND_AFTER_MS = 60 * 1000; // 1 code per number per 60 seconds
 const DEFAULT_NAME = 'HoldMate customer';
 
 // POST /api/auth/request-otp { phone }
 exports.requestOtp = async (req, res) => {
   const { phone } = req.body;
-  const recent = await Otp.findOne({ phone }).sort({ createdAt: -1 });
-  if (recent && Date.now() - recent.createdAt.getTime() < RESEND_AFTER_MS) {
-    const wait = Math.ceil((RESEND_AFTER_MS - (Date.now() - recent.createdAt.getTime())) / 1000);
-    throw new AppError(429, `Please wait ${wait} seconds before requesting a new OTP.`, 'OTP_TOO_SOON');
+  const last = await sms.lastSentAt(phone);
+  if (last && Date.now() - new Date(last).getTime() < RESEND_AFTER_MS) {
+    const wait = Math.ceil((RESEND_AFTER_MS - (Date.now() - new Date(last).getTime())) / 1000);
+    throw new AppError(429, `Please wait ${wait} seconds before requesting another code.`, 'OTP_TOO_SOON', [
+      { field: 'phone', message: 'Resend cooldown', retryAfterSeconds: wait }
+    ]);
   }
-  const code = randomDigits(6);
-  const codeHash = await bcrypt.hash(code, 10);
-  await Otp.deleteMany({ phone });
-  await Otp.create({ phone, codeHash, expiresAt: new Date(Date.now() + OTP_TTL_MS) });
-  await sendLoginOtp(phone, code);
-  res.json({ ok: true, message: 'OTP sent.', expiresInSeconds: OTP_TTL_MS / 1000 });
+  const sent = await sms.sendOtp(phone);
+  res.json({
+    ok: true,
+    message: 'Code sent.',
+    channel: sent.channel, // "sms" or "console" (development)
+    expiresInSeconds: sent.expiresInSeconds,
+    resendAfterSeconds: RESEND_AFTER_MS / 1000
+  });
 };
 
 // POST /api/auth/verify-otp { phone, otp, name? }
 exports.verifyOtp = async (req, res) => {
   const { phone, otp, name } = req.body;
-  const record = await Otp.findOne({ phone }).sort({ createdAt: -1 });
-  if (!record || record.expiresAt.getTime() < Date.now()) {
-    if (record) await record.deleteOne();
-    throw new AppError(400, 'This OTP has expired or was not requested. Please request a new one.', 'OTP_EXPIRED');
-  }
-  if (record.attempts >= MAX_ATTEMPTS) {
-    await record.deleteOne();
-    throw new AppError(429, 'Too many wrong attempts. Please request a new OTP.', 'OTP_LOCKED');
-  }
-  const ok = await bcrypt.compare(otp, record.codeHash);
-  if (!ok) {
-    const updated = await Otp.findByIdAndUpdate(record._id, { $inc: { attempts: 1 } }, { new: true });
-    const left = MAX_ATTEMPTS - (updated ? updated.attempts : MAX_ATTEMPTS);
-    if (left <= 0) {
-      await Otp.deleteOne({ _id: record._id });
-      throw new AppError(429, 'Too many wrong attempts. Please request a new OTP.', 'OTP_LOCKED');
-    }
-    throw new AppError(400, `Incorrect OTP. ${left} attempt${left === 1 ? '' : 's'} left.`, 'OTP_INVALID');
-  }
-  await Otp.deleteMany({ phone });
+  await sms.verifyOtp(phone, otp); // throws a clear AppError when wrong / expired / locked
 
   let user = await User.findOne({ phone });
   let isNew = false;
@@ -66,7 +48,7 @@ exports.verifyOtp = async (req, res) => {
   res.json({ ok: true, isNew, user: user.toPublic() });
 };
 
-// GET /api/auth/me
+// GET /api/auth/me  → { user } or { user: null } when logged out
 exports.me = async (req, res) => {
   res.json({ user: req.user ? req.user.toPublic() : null });
 };

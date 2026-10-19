@@ -5,7 +5,10 @@
 # 2. npm run dev
 # 3. Click "Send Request" above each block, top to bottom.
 #
-# Login OTPs are printed in the SERVER CONSOLE (development mode).
+# Login OTPs: with SMS_PROVIDER=console they are printed in the SERVER CONSOLE;
+# with a real provider (messagecentral, msg91, fast2sms) they arrive by SMS.
+# The seeded test numbers (90000000xx) are not real phones: use SMS_PROVIDER=console for them.
+# Limits: 1 code per number per 60 s, 5 per number per hour, 10 per IP per hour.
 # Copy the 6-digit code into @otp below, then send the verify request.
 # REST Client remembers the hm_token cookie between requests automatically,
 # so whoever logged in last is the current user.

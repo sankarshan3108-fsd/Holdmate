@@ -23,6 +23,13 @@ const env = {
     lng: num(process.env.HUB_LNG, 76.9667)
   },
   SERVICE_RADIUS_KM: num(process.env.SERVICE_RADIUS_KM, 15),
+  // SMS / OTP provider: console | messagecentral | msg91 | fast2sms (empty = console)
+  SMS_PROVIDER: (process.env.SMS_PROVIDER || 'console').trim().toLowerCase(),
+  MC_CUSTOMER_ID: (process.env.MC_CUSTOMER_ID || '').trim(),
+  MC_KEY: (process.env.MC_KEY || '').trim(),
+  MSG91_AUTH_KEY: (process.env.MSG91_AUTH_KEY || '').trim(),
+  MSG91_TEMPLATE_ID: (process.env.MSG91_TEMPLATE_ID || '').trim(),
+  FAST2SMS_API_KEY: (process.env.FAST2SMS_API_KEY || '').trim(),
   CORS_ORIGINS: (process.env.CORS_ORIGINS || 'http://localhost:5500,http://127.0.0.1:5500')
     .split(',')
     .map((s) => s.trim())
@@ -38,6 +45,18 @@ env.assertRequired = function assertRequired() {
   else if (!/^mongodb(\+srv)?:\/\//.test(env.MONGODB_URI)) problems.push('MONGODB_URI must start with mongodb:// or mongodb+srv://');
   if (!env.JWT_SECRET) problems.push('JWT_SECRET is empty.');
   else if (env.JWT_SECRET.length < 32) problems.push('JWT_SECRET must be at least 32 characters long.');
+  const smsKeys = {
+    console: [],
+    messagecentral: ['MC_CUSTOMER_ID', 'MC_KEY'],
+    msg91: ['MSG91_AUTH_KEY', 'MSG91_TEMPLATE_ID'],
+    fast2sms: ['FAST2SMS_API_KEY']
+  };
+  if (!smsKeys[env.SMS_PROVIDER]) {
+    problems.push(`SMS_PROVIDER "${env.SMS_PROVIDER}" is not supported. Use console, messagecentral, msg91 or fast2sms.`);
+  } else {
+    smsKeys[env.SMS_PROVIDER].forEach((k) => { if (!env[k]) problems.push(`${k} is required when SMS_PROVIDER=${env.SMS_PROVIDER}.`); });
+  }
+  if (env.isProd && env.SMS_PROVIDER === 'console') problems.push('SMS_PROVIDER=console is for development only. Set a real SMS provider in production.');
   if (problems.length) {
     console.error('\n[config] server/.env is missing or incomplete:');
     problems.forEach((p) => console.error('  - ' + p));

@@ -983,19 +983,20 @@
           <legend class="sr-only">Verify your mobile number</legend>
           <div class="otp-intro">
             <span class="otp-intro__ic"><svg class="ic"><use href="#i-phone"/></svg></span>
-            <div><b>Verify your mobile number</b><p class="muted small" id="b-otp-msg">We sent a 6-digit code to your phone.</p></div>
+            <div><b>Enter the 6-digit code</b><p class="muted small" id="b-otp-msg">Code sent to your phone.</p></div>
           </div>
           <div class="field">
-            <label for="b-otp">6-digit code</label>
-            <div class="field__row"><svg class="ic field__ic"><use href="#i-key"/></svg><input id="b-otp" class="mono otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="------" /></div>
+            <span class="label" id="b-otp-label">Verification code</span>
+            <div class="otp-boxes" id="b-otp-boxes" role="group" aria-labelledby="b-otp-label"></div>
           </div>
           <p class="muted small dev-note" id="b-otp-dev" hidden>Development mode: the code is printed in the server console.</p>
           <p class="field-error" id="b-err-otp" aria-live="polite"></p>
+          <div class="otp-links">
+            <button type="button" class="link-btn small" id="bk-otp-resend">Resend code</button>
+            <button type="button" class="link-btn small" id="bk-otp-back">Change number</button>
+          </div>
           <div class="bk-actions">
-            <div class="btn-row" style="margin:0">
-              <button type="button" class="btn btn--ghost-dark" id="bk-otp-back"><svg class="ic"><use href="#i-left"/></svg><span>Change number</span></button>
-              <button type="button" class="link-btn small" id="bk-otp-resend">Resend code</button>
-            </div>
+            <span class="muted small">The code is valid for 5 minutes.</span>
             <button type="button" class="btn btn--primary" id="bk-otp-verify"><span>Verify &amp; book</span></button>
           </div>
         </fieldset>

@@ -10,14 +10,17 @@
 
   /* ------------------------------------------------------------------
      CONFIG — where the API lives.
-     '' = same origin (the site is served by the backend at http://localhost:5000).
-     When the page is opened another way (VS Code Live Server, file://),
-     it talks to http://localhost:5000. Override with window.HOLDMATE_API_BASE.
+     '' = same origin: the normal case, because the backend serves the site
+     (http://localhost:5000 in development, your domain in production).
+     Only when the page is opened another way — file:// or VS Code Live Server
+     (ports 5500/5501) — it talks to http://localhost:5000.
+     Override with window.HOLDMATE_API_BASE.
      ------------------------------------------------------------------ */
+  const STATIC_DEV_PORTS = ['5500', '5501'];
   const API_BASE =
     typeof window.HOLDMATE_API_BASE === 'string'
       ? window.HOLDMATE_API_BASE
-      : location.protocol.startsWith('http') && location.port === '5000'
+      : location.protocol.startsWith('http') && !STATIC_DEV_PORTS.includes(location.port)
         ? ''
         : 'http://localhost:5000';
   HM.API_BASE = API_BASE;
