@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HoldMate — Lock Smart, Travel Light</title>
+  <meta name="description" content="HoldMate is India's first smart mobile cloakroom. We pick up your bags, keep them sealed in a smart locker on wheels and deliver them anywhere within 15 km of Coimbatore Junction." />
+  <meta name="theme-color" content="#061440" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230B49C6'/%3E%3Cpath d='M20 30v-6a12 12 0 0 1 24 0v6' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3Crect x='14' y='29' width='36' height='24' rx='6' fill='%23fff'/%3E%3Ccircle cx='32' cy='41' r='4' fill='%230B49C6'/%3E%3C/svg%3E" />
+
+  <!-- Fonts: preconnect + display=swap so text is visible immediately -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" />
+  <!-- Leaflet tiles host (map itself is lazy-loaded by js/gps.js) -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="is-loading">
+
+<!-- =========================================================
+     SVG ICON SPRITE (inline, no image files)
+     ========================================================= -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M9 11v5M15 11v5"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+    <symbol id="i-van" viewBox="0 0 24 24"><path d="M2.5 16.5V7.5A1.5 1.5 0 0 1 4 6h10v10.5"/><path d="M14 9h4l3.5 4v3.5H14"/><circle cx="7" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.1-7.5 9.5-4.3-1.4-7.5-4.9-7.5-9.5V6L12 3z"/><path d="M8.8 12.2l2.2 2.2 4.4-4.6"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l1.5 1.5"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM18 14h2M14 18v2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol>
+    <symbol id="i-rupee" viewBox="0 0 24 24"><path d="M7 5h10M7 9h10M7 5h3.5a4 4 0 0 1 0 8H7l7.5 7"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-6.5 8 6.5"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="i-headset" viewBox="0 0 24 24"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2"/><rect x="3.5" y="13" width="4" height="6" rx="1.5"/><rect x="16.5" y="13" width="4" height="6" rx="1.5"/><path d="M18.5 19c0 1.2-1.6 2-4 2h-2"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12.5" rx="2.5"/><path d="M3 10h18M7 15h3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
+    <symbol id="i-building" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M9 7.5h2M13 7.5h2M9 11h2M13 11h2M9 14.5h2M13 14.5h2M10.5 20.5v-3h3v3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M16 14.3c2.3 0 4 1.5 4.5 4.2"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3.5l3 3-3 3"/><path d="M4 11V9.5a3 3 0 0 1 3-3h13"/><path d="M7 20.5l-3-3 3-3"/><path d="M20 13v1.5a3 3 0 0 1-3 3H4"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9-8-8z"/><circle cx="8" cy="8" r="1.5"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 9a5 5 0 0 1 7 0L12 12.5z"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></symbol>
+    <symbol id="i-follow" viewBox="0 0 24 24"><path d="M12 3l7 18-7-4-7 4 7-18z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" stroke-dasharray="3 2.5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="16.8" cy="7.2" r=".6"/></symbol>
+    <symbol id="i-linkedin" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 10.5V16M8 8v.01M11.5 16v-5.5M11.5 13c0-1.6 1-2.5 2.3-2.5S16 11.3 16 13v3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></symbol>
+    <symbol id="i-youtube" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3.5"/><path d="M10.5 9.5v5l4-2.5z"/></symbol>
+  </defs>
+</svg>
+
+<!-- =========================================================
+     PRELOADER
+     ========================================================= -->
+<div class="preloader" id="preloader" aria-hidden="true">
+  <div class="preloader__inner">
+    <svg class="preloader__mark" viewBox="0 0 64 64" aria-hidden="true">
+      <rect class="pl-draw" x="10" y="27" width="44" height="29" rx="8"/>
+      <path class="pl-draw" d="M20 27v-7a12 12 0 0 1 24 0v7"/>
+      <path class="pl-draw" d="M32 37v8"/>
+    </svg>
+    <div class="preloader__word" aria-label="HoldMate">
+      <span>H</span><span>o</span><span>l</span><span>d</span><span class="accent">M</span><span class="accent">a</span><span class="accent">t</span><span class="accent">e</span>
+    </div>
+    <p class="preloader__tag">Lock Smart, Travel Light.</p>
+    <div class="preloader__bar"><span id="preloader-bar"></span></div>
+  </div>
+</div>
+
+<!-- Global UI helpers -->
+<div class="scroll-progress" aria-hidden="true"><span id="scroll-progress"></span></div>
+<div class="cursor is-hidden" aria-hidden="true"><div class="cursor__dot" id="cursor-dot"></div><div class="cursor__ring" id="cursor-ring"></div></div>
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- =========================================================
+     1. NAVBAR
+     ========================================================= -->
+<header class="nav" id="nav">
+  <div class="nav__inner container">
+    <a href="#home" class="logo" aria-label="HoldMate home">
+      <svg class="logo__mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="currentColor"/><path d="M21 29v-5a11 11 0 0 1 22 0v5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><rect x="15" y="28" width="34" height="24" rx="6" fill="#fff"/><circle cx="32" cy="40" r="3.6" fill="currentColor"/></svg>
+      <span class="logo__text">Hold<b>Mate</b></span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#how" data-nav="how">How it works</a>
+      <a href="#services" data-nav="services">Services</a>
+      <a href="#gps" data-nav="gps">Live GPS</a>
+      <a href="#pricing" data-nav="pricing">Pricing</a>
+      <a href="#about" data-nav="about">About</a>
+      <a href="#faq" data-nav="faq">FAQ</a>
+    </nav>
+    <div class="nav__actions">
+      <button type="button" class="nav-account" data-account aria-label="My bookings" title="My bookings">
+        <svg class="ic"><use href="#i-user"/></svg><span class="nav-account__dot" aria-hidden="true"></span>
+      </button>
+      <a href="#gps" class="btn btn--ghost btn--sm" data-track-link>
+        <svg class="ic"><use href="#i-target"/></svg><span>Track my bag</span>
+      </a>
+      <button type="button" class="btn btn--primary btn--sm" data-book data-magnetic><span>Book now</span></button>
+      <button type="button" class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu"><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<!-- Mobile menu (circular reveal = a scaled circle, transform only) -->
+<div class="mmenu" id="mobile-menu" aria-hidden="true" inert>
+  <div class="mmenu__bg"></div>
+  <nav class="mmenu__links" aria-label="Mobile">
+    <a href="#how">How it works</a>
+    <a href="#services">Services</a>
+    <a href="#gps">Live GPS</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#about">About</a>
+    <a href="#faq">FAQ</a>
+    <button type="button" class="mmenu__link" data-account>My bookings</button>
+    <div class="mmenu__cta">
+      <a href="#gps" class="btn btn--light" data-track-link>Track my bag</a>
+      <button type="button" class="btn btn--primary" data-book>Book now</button>
+    </div>
+  </nav>
+</div>
+
+<main id="main">
+
+<!-- =========================================================
+     2. HERO
+     ========================================================= -->
+<section class="hero section--dark" id="home">
+  <canvas class="hero__canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero__blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="hero__grid-bg" aria-hidden="true"></div>
+
+  <div class="container hero__inner">
+    <div class="hero__copy">
+      <p class="eyebrow eyebrow--light"><span class="pulse-dot"></span>Now piloting in Coimbatore</p>
+      <h1 class="hero__title" aria-label="Lock Smart, Travel Light.">
+        <span class="hero__line" data-letters>Lock Smart,</span>
+        <span class="hero__line hero__line--grad" data-letters>Travel Light.</span>
+      </h1>
+      <p class="hero__brandline">Whenever you want, wherever you need, we will be there as your HoldMate.</p>
+      <p class="hero__lead">India's first smart mobile cloakroom — we pick up your bags, keep them in a smart locker on wheels and deliver them anywhere within 15 km of Coimbatore.</p>
+
+      <!-- Booking / quote widget -->
+      <form class="quote card-glass" id="quote" novalidate>
+        <div class="tabs" role="tablist" aria-label="Service type">
+          <button type="button" role="tab" class="tab is-active" aria-selected="true" data-tab="pickup">Pickup &amp; drop</button>
+          <button type="button" role="tab" class="tab" aria-selected="false" data-tab="store">Store only</button>
+          <button type="button" role="tab" class="tab" aria-selected="false" data-tab="events">Events &amp; groups</button>
+          <span class="tabs__ink" aria-hidden="true"></span>
+        </div>
+
+        <div class="presets" aria-label="Quick presets">
+          <span class="presets__label">Quick fill</span>
+          <button type="button" class="chip" data-preset="students">Students</button>
+          <button type="button" class="chip" data-preset="families">Families</button>
+          <button type="button" class="chip" data-preset="tourists">Tourists</button>
+          <button type="button" class="chip" data-preset="business">Business travel</button>
+        </div>
+
+        <div class="quote__grid">
+          <div class="field field--full">
+            <label for="q-from" id="q-from-label">Pick up from</label>
+            <div class="field__row">
+              <svg class="ic field__ic"><use href="#i-pin"/></svg>
+              <input id="q-from" name="from" list="places" autocomplete="off" placeholder="e.g. Gandhipuram" />
+              <button type="button" class="gps-btn" data-gps-for="q-from" aria-label="Use my location for pickup"><svg class="ic"><use href="#i-target"/></svg><span>Use my location</span></button>
+            </div>
+          </div>
+          <div class="field field--full" id="q-to-wrap">
+            <label for="q-to">Deliver to</label>
+            <div class="field__row">
+              <svg class="ic field__ic"><use href="#i-pin"/></svg>
+              <input id="q-to" name="to" list="places" autocomplete="off" placeholder="e.g. Coimbatore Airport" />
+              <button type="button" class="gps-btn gps-btn--icon" data-gps-for="q-to" aria-label="Use my location for drop-off"><svg class="ic"><use href="#i-target"/></svg></button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="q-hours" id="q-hours-label">Deliver in / hold for</label>
+            <div class="field__row">
+              <svg class="ic field__ic"><use href="#i-clock"/></svg>
+              <select id="q-hours" name="hours">
+                <option value="1">1 hour</option>
+                <option value="2">2 hours</option>
+                <option value="4" selected>4 hours</option>
+                <option value="6">6 hours</option>
+                <option value="12">12 hours</option>
+                <option value="24">24 hours</option>
+                <option value="48">48 hours</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label" id="q-bags-label">Bags</span>
+            <div class="stepper" data-stepper data-min="1" data-max="60">
+              <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer bags"><svg class="ic"><use href="#i-minus"/></svg></button>
+              <input id="q-bags" name="bags" type="number" inputmode="numeric" value="2" min="1" max="60" aria-labelledby="q-bags-label" />
+              <button type="button" class="stepper__btn" data-step="1" aria-label="More bags"><svg class="ic"><use href="#i-plus"/></svg></button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="q-kg">Weight (kg)</label>
+            <div class="field__row">
+              <svg class="ic field__ic"><use href="#i-scale"/></svg>
+              <input id="q-kg" name="kg" type="number" inputmode="decimal" min="1" max="500" value="15" />
+            </div>
+          </div>
+        </div>
+
+        <div class="quote__result" id="q-result" aria-live="polite" hidden></div>
+
+        <div class="quote__actions">
+          <button type="submit" class="btn btn--primary btn--block" data-magnetic><span>Get estimate</span><svg class="ic"><use href="#i-arrow"/></svg></button>
+          <button type="button" class="btn btn--light btn--block" id="q-book" disabled><span>Book this</span></button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Live van card -->
+    <aside class="hero__visual" aria-label="Live van preview">
+      <div class="van-card card-glass" data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <div class="van-card__head">
+          <div>
+            <p class="van-card__kicker"><span class="pulse-dot"></span>Live van</p>
+            <p class="van-card__title">HM Van 03 · Junction loop</p>
+          </div>
+          <span class="badge-live">LIVE</span>
+        </div>
+        <div class="van-card__map">
+          <svg viewBox="0 0 320 200" class="mini-map" id="mini-map" aria-hidden="true">
+            <defs>
+              <pattern id="mm-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(94,200,255,.08)" stroke-width="1"/></pattern>
+            </defs>
+            <rect width="320" height="200" fill="url(#mm-grid)"/>
+            <path d="M0 150 C60 140 90 160 140 120 S230 60 320 70" class="mm-road"/>
+            <path d="M60 0 C70 60 110 90 120 200" class="mm-road"/>
+            <path d="M210 0 C200 70 250 120 240 200" class="mm-road"/>
+            <path id="mm-route" d="M36 160 C80 160 96 120 130 112 S190 128 214 92 S262 44 290 42" class="mm-route"/>
+            <path d="M36 160 C80 160 96 120 130 112 S190 128 214 92 S262 44 290 42" class="mm-route-glow"/>
+            <circle cx="36" cy="160" r="6" class="mm-pt"/>
+            <circle cx="290" cy="42" r="12" class="mm-dest-ring"/>
+            <circle cx="290" cy="42" r="6" class="mm-dest"/>
+            <g id="mm-van">
+              <circle r="13" class="mm-van-halo"/>
+              <circle r="8" class="mm-van-body"/>
+              <path d="M-3 0h6M0 -3l3 3-3 3" class="mm-van-arrow"/>
+            </g>
+          </svg>
+          <span class="float-badge fb-1"><svg class="ic"><use href="#i-tag"/></svg>Sealed &amp; photo-tagged</span>
+          <span class="float-badge fb-2"><svg class="ic"><use href="#i-qr"/></svg>OTP / QR handover</span>
+          <span class="float-badge fb-3"><svg class="ic"><use href="#i-target"/></svg>Live GPS tracking</span>
+        </div>
+        <div class="van-card__meta">
+          <div><span>Locker</span><b>B3</b></div>
+          <div><span>Seal no.</span><b>#HM-20417</b></div>
+          <div><span>ETA</span><b id="mm-eta">12 min</b></div>
+        </div>
+        <div class="eta-bar" aria-hidden="true"><span id="mm-bar"></span></div>
+        <p class="van-card__foot">Gandhipuram → Coimbatore Airport</p>
+      </div>
+    </aside>
+  </div>
+
+  <a href="#what" class="scroll-cue" aria-label="Scroll to learn more"><span></span></a>
+</section>
+
+<!-- =========================================================
+     3. MARQUEE
+     ========================================================= -->
+<div class="marquee" aria-label="HoldMate features">
+  <div class="marquee__track">
+    <ul class="marquee__list">
+      <li>Pickup &amp; delivery</li><li>Store &amp; hold</li><li>Live GPS tracking</li><li>OTP handover</li><li>Within 15 km</li><li>Express pickups</li><li>Events &amp; weddings</li><li>UPI accepted</li>
+    </ul>
+    <ul class="marquee__list" aria-hidden="true">
+      <li>Pickup &amp; delivery</li><li>Store &amp; hold</li><li>Live GPS tracking</li><li>OTP handover</li><li>Within 15 km</li><li>Express pickups</li><li>Events &amp; weddings</li><li>UPI accepted</li>
+    </ul>
+  </div>
+</div>
+
+<!-- =========================================================
+     4. WHAT IS HOLDMATE
+     ========================================================= -->
+<section class="section" id="what">
+  <div class="container">
+    <div class="section-head center">
+      <p class="eyebrow" data-reveal>What is HoldMate</p>
+      <h2 class="h2" data-split>Two words. One simple idea.</h2>
+      <p class="lead" data-reveal>We hold your luggage like a travel mate who carries it for you — and meets you where you'll be next.</p>
+    </div>
+    <div class="equation">
+      <article class="eq-card" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="eq-card__icon"><svg class="ic"><use href="#i-lock"/></svg></span>
+        <h3>Hold</h3>
+        <p>Your bags are weighed, sealed, photographed and locked in their own smart locker.</p>
+      </article>
+      <span class="eq-op" data-reveal aria-hidden="true">+</span>
+      <article class="eq-card" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="eq-card__icon"><svg class="ic"><use href="#i-user"/></svg></span>
+        <h3>Mate</h3>
+        <p>A verified captain carries them for you and meets you wherever you will be next.</p>
+      </article>
+      <span class="eq-op" data-reveal aria-hidden="true">=</span>
+      <article class="eq-card eq-card--result" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="eq-card__icon"><svg class="ic"><use href="#i-van"/></svg></span>
+        <h3>Smart mobile cloakroom</h3>
+        <p>A cloakroom on wheels — booked in minutes, tracked live, handed back only with your OTP.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     5. HOW IT WORKS
+     ========================================================= -->
+<section class="section section--dark how" id="how">
+  <!-- 5a. Scroll-drawn route (pinned) -->
+  <div class="how__pin" id="how-pin">
+    <div class="how__sticky">
+      <div class="container">
+        <div class="section-head center">
+          <p class="eyebrow eyebrow--light" data-reveal>How it works</p>
+          <h2 class="h2" data-split>From your hands to your next stop.</h2>
+        </div>
+        <div class="route-wrap">
+          <svg class="route-svg" id="route-svg" viewBox="0 0 1000 260" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <path class="route-base" d="M40 190 C160 190 170 70 300 70 S440 190 520 190 S650 70 760 70 S900 170 960 170"/>
+            <path class="route-line" id="route-line" d="M40 190 C160 190 170 70 300 70 S440 190 520 190 S650 70 760 70 S900 170 960 170"/>
+            <g id="route-nodes"></g>
+            <g id="route-van" class="route-van">
+              <rect x="-22" y="-13" width="44" height="26" rx="7"/>
+              <rect x="6" y="-8" width="11" height="9" rx="2" class="route-van__win"/>
+              <circle cx="-11" cy="14" r="4" class="route-van__wheel"/>
+              <circle cx="11" cy="14" r="4" class="route-van__wheel"/>
+            </g>
+          </svg>
+          <ol class="route-steps" id="route-steps">
+            <li class="route-step"><span class="route-step__n">01</span><h3>Pick up</h3><p>A verified captain collects your bags at your door, hotel or station.</p></li>
+            <li class="route-step"><span class="route-step__n">02</span><h3>Lock</h3><p>Each bag is weighed, sealed with a numbered tag, photographed and locked.</p></li>
+            <li class="route-step"><span class="route-step__n">03</span><h3>Move</h3><p>Your locker travels with the van. Follow it live on the map.</p></li>
+            <li class="route-step"><span class="route-step__n">04</span><h3>Deliver</h3><p>We hand your bags back only after your OTP or QR code matches.</p></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5b. Sticky phone walkthrough -->
+  <div class="container walk">
+    <div class="walk__phone-col">
+      <div class="phone" aria-hidden="true">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <!-- Screen 1: booking form -->
+          <div class="pscreen is-active" data-screen="0">
+            <div class="ps-head"><span class="ps-logo">HoldMate</span><span class="ps-pill">Book</span></div>
+            <p class="ps-title">Where should we pick up?</p>
+            <div class="ps-field"><svg class="ic"><use href="#i-pin"/></svg>Gandhipuram bus stand</div>
+            <div class="ps-field"><svg class="ic"><use href="#i-pin"/></svg>Coimbatore Airport</div>
+            <div class="ps-row"><div class="ps-field ps-field--half"><svg class="ic"><use href="#i-bag"/></svg>2 bags</div><div class="ps-field ps-field--half"><svg class="ic"><use href="#i-clock"/></svg>4 h</div></div>
+            <div class="ps-price"><span>Estimate</span><b>₹ 231</b></div>
+            <div class="ps-btn">Confirm pickup</div>
+          </div>
+          <!-- Screen 2: captain arriving -->
+          <div class="pscreen" data-screen="1">
+            <div class="ps-head"><span class="ps-logo">HoldMate</span><span class="ps-pill">Pickup</span></div>
+            <p class="ps-title">Captain is arriving</p>
+            <div class="ps-captain">
+              <span class="ps-avatar"><svg class="ic"><use href="#i-user"/></svg></span>
+              <div><b>Captain R. Kumar</b><span>Verified · HM Van 03</span></div>
+            </div>
+            <div class="ps-eta"><span>Arriving in</span><b>6 min</b></div>
+            <div class="ps-progress"><i></i></div>
+            <ul class="ps-list"><li><svg class="ic"><use href="#i-scale"/></svg>Bags weighed at pickup</li><li><svg class="ic"><use href="#i-tag"/></svg>Numbered seal tag</li><li><svg class="ic"><use href="#i-camera"/></svg>Photo on record</li></ul>
+          </div>
+          <!-- Screen 3: live map with locker -->
+          <div class="pscreen" data-screen="2">
+            <div class="ps-head"><span class="ps-logo">HoldMate</span><span class="ps-pill">Holding</span></div>
+            <div class="ps-map">
+              <svg viewBox="0 0 200 150" aria-hidden="true"><path d="M20 120 C60 120 70 70 110 70 S160 40 182 28" class="ps-route"/><circle cx="20" cy="120" r="5" class="ps-dot"/><circle cx="182" cy="28" r="5" class="ps-dot"/><circle cx="110" cy="70" r="12" class="ps-ring"/><circle cx="110" cy="70" r="6" class="ps-van"/></svg>
+            </div>
+            <div class="ps-locker"><div><span>Locker</span><b>B3</b></div><div><span>Seal</span><b>#20417</b></div><div><span>Status</span><b>Locked</b></div></div>
+          </div>
+          <!-- Screen 4: OTP / QR handover -->
+          <div class="pscreen" data-screen="3">
+            <div class="ps-head"><span class="ps-logo">HoldMate</span><span class="ps-pill">Handover</span></div>
+            <p class="ps-title">Show this to your captain</p>
+            <div class="ps-otp"><span>4</span><span>8</span><span>2</span><span>1</span></div>
+            <div class="ps-qr" id="ps-qr"></div>
+            <p class="ps-note"><svg class="ic"><use href="#i-shield"/></svg>Bags released only when this matches</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ol class="walk__steps">
+      <li class="walk-step is-active" data-walk="0"><div class="walk-step__card"><span class="walk-step__n">Step 1</span><h3>Book</h3><p>Choose pickup and drop points, the time and your bags. You see the price before you confirm.</p></div></li>
+      <li class="walk-step" data-walk="1"><div class="walk-step__card"><span class="walk-step__n">Step 2</span><h3>We pick up</h3><p>A verified captain arrives on time. Every bag is weighed, sealed with a numbered tag and photographed.</p></div></li>
+      <li class="walk-step" data-walk="2"><div class="walk-step__card"><span class="walk-step__n">Step 3</span><h3>We hold</h3><p>Your bags sit in their own smart locker inside the vehicle. Track the van live, any time.</p></div></li>
+      <li class="walk-step" data-walk="3"><div class="walk-step__card"><span class="walk-step__n">Step 4</span><h3>We deliver</h3><p>We meet you where you'll be next and hand over only after your OTP or QR code matches.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- =========================================================
+     6. SERVICES
+     ========================================================= -->
+<section class="section" id="services">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>Services</p>
+      <h2 class="h2" data-split>One cloakroom, six ways to use it.</h2>
+    </div>
+    <div class="services">
+      <button type="button" class="svc" data-service="pickup" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="svc__ic"><svg class="ic"><use href="#i-route"/></svg></span><h3>Pickup &amp; delivery</h3><p>We collect your bags and deliver them to your next stop.</p><span class="svc__more">Details <svg class="ic"><use href="#i-arrow"/></svg></span></button>
+      <button type="button" class="svc" data-service="store" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="svc__ic"><svg class="ic"><use href="#i-lock"/></svg></span><h3>Store &amp; hold</h3><p>Keep your bags with us for a few hours or up to two days.</p><span class="svc__more">Details <svg class="ic"><use href="#i-arrow"/></svg></span></button>
+      <button type="button" class="svc" data-service="scheduled" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="svc__ic"><svg class="ic"><use href="#i-repeat"/></svg></span><span class="svc__tag">15% cheaper</span><h3>Scheduled runs</h3><p>Ride on a planned route and save on every booking.</p><span class="svc__more">Details <svg class="ic"><use href="#i-arrow"/></svg></span></button>
+      <button type="button" class="svc" data-service="express" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="svc__ic"><svg class="ic"><use href="#i-bolt"/></svg></span><span class="svc__tag">+50%</span><h3>Express</h3><p>A vehicle comes straight to you, no shared stops.</p><span class="svc__more">Details <svg class="ic"><use href="#i-arrow"/></svg></span></button>
+      <button type="button" class="svc" data-service="events" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="svc__ic"><svg class="ic"><use href="#i-users"/></svg></span><h3>Events &amp; weddings</h3><p>A mobile cloakroom parked at your venue for guests.</p><span class="svc__more">Details <svg class="ic"><use href="#i-arrow"/></svg></span></button>
+      <button type="button" class="svc" data-service="partners" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="svc__ic"><svg class="ic"><use href="#i-building"/></svg></span><h3>Hotels &amp; colleges</h3><p>Luggage desks and move-in days handled for your guests and students.</p><span class="svc__more">Details <svg class="ic"><use href="#i-arrow"/></svg></span></button>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     7. FLEET
+     ========================================================= -->
+<section class="section section--ice" id="fleet">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>Fleet</p>
+      <h2 class="h2" data-split>The right vehicle for every load.</h2>
+      <p class="lead" data-reveal>We pick the vehicle automatically from your bag count and weight.</p>
+    </div>
+    <div class="fleet">
+      <article class="vehicle" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <svg class="vehicle__art" viewBox="0 0 160 90" aria-hidden="true">
+          <g class="veh-body"><circle cx="38" cy="66" r="15" class="wheel"/><circle cx="122" cy="66" r="15" class="wheel"/><path d="M38 66 L66 40 H96 L122 66" class="frame"/><path d="M66 40 L58 26 H48" class="frame"/><rect x="80" y="22" width="32" height="22" rx="5" class="box"/><path d="M96 40 L104 28" class="frame"/></g>
+          <path d="M8 84H152" class="ground"/>
+        </svg>
+        <h3>HoldMate Bike</h3>
+        <p>1–2 small bags. Fastest in traffic.</p>
+        <div class="cap"><div class="cap__row"><span>Capacity</span><b>2 bags · 15 kg</b></div><div class="cap__bar"><span style="--v:.1"></span></div></div>
+      </article>
+      <article class="vehicle" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <svg class="vehicle__art" viewBox="0 0 160 90" aria-hidden="true">
+          <g class="veh-body"><path d="M30 64 V40 C30 24 44 16 62 16 H112 V64 Z" class="box"/><path d="M40 44 V34 C40 28 46 24 54 24 H66 V44 Z" class="win"/><rect x="74" y="24" width="30" height="30" rx="3" class="locker"/><path d="M89 24V54M74 39H104" class="frame"/><circle cx="46" cy="66" r="11" class="wheel"/><circle cx="102" cy="66" r="11" class="wheel"/></g>
+          <path d="M8 84H152" class="ground"/>
+        </svg>
+        <h3>HoldMate Auto</h3>
+        <p>Electric auto with 8 lockers.</p>
+        <div class="cap"><div class="cap__row"><span>Capacity</span><b>8 lockers · 80 kg</b></div><div class="cap__bar"><span style="--v:.32"></span></div></div>
+      </article>
+      <article class="vehicle vehicle--main" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="vehicle__badge">Main fleet</span>
+        <svg class="vehicle__art" viewBox="0 0 160 90" aria-hidden="true">
+          <g class="veh-body"><path d="M14 66 V26 C14 20 18 16 24 16 H112 L140 40 V66 Z" class="box"/><path d="M114 22 L134 40 H114 Z" class="win"/><g class="locker-grid"><rect x="24" y="24" width="18" height="16" rx="2"/><rect x="46" y="24" width="18" height="16" rx="2"/><rect x="68" y="24" width="18" height="16" rx="2"/><rect x="90" y="24" width="18" height="16" rx="2"/><rect x="24" y="44" width="18" height="16" rx="2"/><rect x="46" y="44" width="18" height="16" rx="2"/><rect x="68" y="44" width="18" height="16" rx="2"/><rect x="90" y="44" width="18" height="16" rx="2"/></g><circle cx="40" cy="68" r="11" class="wheel"/><circle cx="116" cy="68" r="11" class="wheel"/></g>
+          <path d="M8 84H152" class="ground"/>
+        </svg>
+        <h3>HoldMate Van</h3>
+        <p>20 smart lockers. Our main vehicle.</p>
+        <div class="cap"><div class="cap__row"><span>Capacity</span><b>20 lockers · 250 kg</b></div><div class="cap__bar"><span style="--v:.6"></span></div></div>
+      </article>
+      <article class="vehicle" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <svg class="vehicle__art" viewBox="0 0 160 90" aria-hidden="true">
+          <g class="veh-body"><rect x="8" y="14" width="104" height="52" rx="5" class="box"/><path d="M112 30 H134 L150 46 V66 H112 Z" class="box"/><path d="M118 35 H131 L142 46 H118 Z" class="win"/><path d="M34 14V66M60 14V66M86 14V66M8 40H112" class="frame"/><circle cx="32" cy="68" r="10" class="wheel"/><circle cx="60" cy="68" r="10" class="wheel"/><circle cx="130" cy="68" r="10" class="wheel"/></g>
+          <path d="M4 84H156" class="ground"/>
+        </svg>
+        <h3>HoldMate Truck</h3>
+        <p>48 lockers for events and big moves.</p>
+        <div class="cap"><div class="cap__row"><span>Capacity</span><b>48 lockers · 600 kg</b></div><div class="cap__bar"><span style="--v:1"></span></div></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     8. INSIDE THE VAN — LOCKER GRID
+     ========================================================= -->
+<section class="section section--dark" id="lockers">
+  <div class="container lockers">
+    <div class="lockers__copy">
+      <p class="eyebrow eyebrow--light" data-reveal>Inside the van</p>
+      <h2 class="h2" data-split>20 smart lockers. One per booking.</h2>
+      <p class="lead lead--light" data-reveal>Every booking gets its own locker. This is a live view of HM Van 03 — tap any locker to see what's inside.</p>
+      <div class="lk-counts" data-reveal>
+        <div class="lk-count"><i class="sw sw--hold"></i><b id="lk-hold">0</b><span>Holding</span></div>
+        <div class="lk-count"><i class="sw sw--out"></i><b id="lk-out">0</b><span>Out for delivery</span></div>
+        <div class="lk-count"><i class="sw sw--free"></i><b id="lk-free">0</b><span>Free</span></div>
+      </div>
+      <div class="lk-detail card-glass" id="lk-detail" aria-live="polite">
+        <p class="lk-detail__empty">Select a locker to see its details.</p>
+      </div>
+    </div>
+    <div class="locker-shell" data-reveal>
+      <div class="locker-shell__head"><span><span class="pulse-dot"></span>HM Van 03 · locker bay</span><span class="mono" id="lk-clock">--:--</span></div>
+      <div class="locker-grid" id="locker-grid" aria-label="Locker bay A1 to D5"></div>
+      <p class="locker-shell__foot">Demo feed · updates every few seconds</p>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     9. LIVE GPS TRACKING
+     ========================================================= -->
+<section class="section gps" id="gps">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>Live GPS tracking</p>
+      <h2 class="h2" data-split>See your bags move, in real time.</h2>
+      <p class="lead" data-reveal>Check if you're inside our 15 km zone, or track a booking by its ID. Try the demo ID <button type="button" class="link-btn mono" data-demo-track>HM-4821</button>.</p>
+    </div>
+
+    <div class="gps__layout">
+      <!-- Controls -->
+      <div class="gps__panel">
+        <div class="panel-card" data-reveal>
+          <h3 class="panel-card__title"><svg class="ic"><use href="#i-target"/></svg>Am I in the zone?</h3>
+          <p class="muted">Share your live location to see your distance from Coimbatore Junction.</p>
+          <div class="btn-row">
+            <button type="button" class="btn btn--primary btn--sm" id="gps-share"><span>Share my location</span></button>
+            <button type="button" class="btn btn--ghost-dark btn--sm" id="gps-stop" hidden><span>Stop sharing</span></button>
+          </div>
+          <div class="gps-status" id="gps-status" aria-live="polite"></div>
+        </div>
+
+        <div class="panel-card" data-reveal>
+          <h3 class="panel-card__title"><svg class="ic"><use href="#i-van"/></svg>Track a booking</h3>
+          <form class="track-form" id="track-form" novalidate>
+            <label for="track-id" class="sr-only">Booking ID</label>
+            <input id="track-id" class="mono" placeholder="HM-4821" autocomplete="off" spellcheck="false" maxlength="7" />
+            <button type="submit" class="btn btn--primary btn--sm"><span>Track</span></button>
+          </form>
+          <p class="field-error" id="track-error" aria-live="polite"></p>
+
+          <div class="tracker" id="tracker" hidden>
+            <div class="tracker__head">
+              <div><span class="muted">Booking</span><b class="mono" id="tr-id">HM-4821</b></div>
+              <span class="status-pill" id="tr-status">Booked</span>
+            </div>
+            <p class="tracker__route" id="tr-route">—</p>
+            <div class="tracker__stats">
+              <div><span>ETA</span><b id="tr-eta">--</b></div>
+              <div><span>Distance left</span><b id="tr-dist">--</b></div>
+              <div><span>Speed</span><b id="tr-speed">--</b></div>
+            </div>
+            <div class="tracker__bar" aria-hidden="true"><span id="tr-bar"></span></div>
+            <ol class="timeline" id="tr-timeline">
+              <li>Booked</li><li>Picked up &amp; sealed</li><li>In locker</li><li>On the way</li><li>Delivered</li>
+            </ol>
+            <div class="tracker__otp" id="tr-otp" hidden>
+              <svg class="ic"><use href="#i-key"/></svg>
+              <div><span id="tr-otp-label">Van has arrived. Share your handover OTP with the captain.</span><b class="mono" id="tr-otp-code"></b></div>
+            </div>
+            <p class="tracker__note muted" id="tr-note">Demo feed: simulated movement.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="gps__mapcol" data-reveal>
+        <div class="route-chips" role="group" aria-label="Show a route on the map">
+          <button type="button" class="chip chip--dark" data-route="loop">Junction loop</button>
+          <button type="button" class="chip chip--dark" data-route="airport">Airport line</button>
+          <button type="button" class="chip chip--dark" data-route="campus">Campus line</button>
+        </div>
+        <div class="map-shell">
+          <div class="map" id="map" aria-label="Map of the Coimbatore service zone" role="region"></div>
+          <div class="map-placeholder" id="map-placeholder"><span class="spinner" aria-hidden="true"></span><p>Loading live map…</p></div>
+          <div class="map-hint" id="map-hint">Click the map to enable scroll-zoom</div>
+          <div class="map-tools" role="toolbar" aria-label="Map tools">
+            <button type="button" class="map-tool" id="mt-follow" aria-pressed="false" title="Follow van"><svg class="ic"><use href="#i-follow"/></svg><span>Follow van</span></button>
+            <button type="button" class="map-tool is-on" id="mt-zone" aria-pressed="true" title="Toggle zone"><svg class="ic"><use href="#i-layers"/></svg><span>Zone</span></button>
+            <button type="button" class="map-tool" id="mt-me" title="Centre on me"><svg class="ic"><use href="#i-target"/></svg><span>Centre on me</span></button>
+          </div>
+          <span class="map-demo">Demo feed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     10. PRICING CALCULATOR
+     ========================================================= -->
+<section class="section section--dark" id="pricing">
+  <div class="container">
+    <div class="section-head center">
+      <p class="eyebrow eyebrow--light" data-reveal>Pricing</p>
+      <h2 class="h2" data-split>Time + distance + weight. That's it.</h2>
+      <p class="lead lead--light" data-reveal>Move the sliders to see your price. <span class="tag-soft">Indicative pilot rates</span></p>
+    </div>
+
+    <div class="calc" data-reveal>
+      <div class="calc__inputs">
+        <div class="seg" role="radiogroup" aria-label="Delivery speed" id="calc-mode">
+          <button type="button" role="radio" aria-checked="false" data-mode="scheduled">Scheduled <small>−15%</small></button>
+          <button type="button" role="radio" aria-checked="true" class="is-active" data-mode="standard">Standard</button>
+          <button type="button" role="radio" aria-checked="false" data-mode="express">Express <small>+50%</small></button>
+          <span class="seg__ink" aria-hidden="true"></span>
+        </div>
+        <div class="range">
+          <div class="range__head"><label for="c-km">Distance</label><output id="c-km-out">6 km</output></div>
+          <input type="range" id="c-km" min="1" max="15" step="1" value="6" />
+          <div class="range__scale"><span>1 km</span><span>15 km</span></div>
+        </div>
+        <div class="range">
+          <div class="range__head"><label for="c-h">Hold time</label><output id="c-h-out">4 h</output></div>
+          <input type="range" id="c-h" min="1" max="48" step="1" value="4" />
+          <div class="range__scale"><span>1 h</span><span>48 h</span></div>
+        </div>
+        <div class="range">
+          <div class="range__head"><label for="c-kg">Weight</label><output id="c-kg-out">15 kg</output></div>
+          <input type="range" id="c-kg" min="1" max="100" step="1" value="15" />
+          <div class="range__scale"><span>1 kg</span><span>100 kg</span></div>
+        </div>
+      </div>
+      <div class="calc__result">
+        <p class="calc__label">Estimated total</p>
+        <p class="calc__total"><span class="cur">₹</span><span id="c-total">0</span></p>
+        <ul class="breakdown" id="c-breakdown"></ul>
+        <div class="calc__vehicle"><svg class="ic"><use href="#i-van"/></svg><div><span>Suggested vehicle</span><b id="c-vehicle">—</b></div></div>
+        <button type="button" class="btn btn--primary btn--block" data-book="calc" data-magnetic><span>Book at this price</span></button>
+        <p class="calc__fine">Events &amp; weddings: ₹1,499 + ₹20 per bag. Final price is confirmed before pickup.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     11. WHY HOLDMATE + TESTIMONIALS
+     ========================================================= -->
+<section class="section" id="why">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>Why HoldMate</p>
+      <h2 class="h2" data-split>Built for trust at every step.</h2>
+    </div>
+    <div class="bento">
+      <article class="bento__item b-wide" data-reveal>
+        <div class="viz viz-seal" aria-hidden="true"><span class="viz-bag"><svg class="ic"><use href="#i-bag"/></svg></span><span class="viz-tag">#HM-20417</span><span class="viz-flash"></span></div>
+        <h3>Sealed &amp; photo-tagged</h3><p>Every bag is weighed, sealed with a numbered tag and photographed at pickup.</p>
+      </article>
+      <article class="bento__item b-tall b-dark" data-reveal>
+        <div class="viz viz-gps" aria-hidden="true"><i></i><i></i><i></i><span class="viz-gps__dot"></span></div>
+        <h3>Live GPS tracking</h3><p>Watch the vehicle carrying your locker on the map, live.</p>
+      </article>
+      <article class="bento__item" data-reveal>
+        <div class="viz viz-otp" aria-hidden="true"><span>4</span><span>8</span><span>2</span><span>1</span></div>
+        <h3>OTP-only handover</h3><p>Bags are released only with your OTP or QR code.</p>
+      </article>
+      <article class="bento__item" data-reveal>
+        <div class="viz viz-captain" aria-hidden="true"><span class="viz-avatar"><svg class="ic"><use href="#i-user"/></svg></span><span class="viz-check"><svg class="ic"><use href="#i-check"/></svg></span></div>
+        <h3>Verified captains</h3><p>ID-checked, trained and accountable for every handover.</p>
+      </article>
+      <article class="bento__item" data-reveal>
+        <div class="viz viz-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <h3>Fair price</h3><p>Pay for time, distance and weight. Nothing hidden.</p>
+      </article>
+      <article class="bento__item" data-reveal>
+        <div class="viz viz-door" aria-hidden="true"><svg class="ic"><use href="#i-home"/></svg><span class="viz-door__pin"><svg class="ic"><use href="#i-pin"/></svg></span></div>
+        <h3>Doorstep pickup</h3><p>Home, hotel, hostel or station — we come to you.</p>
+      </article>
+      <article class="bento__item b-wide b-dark" data-reveal>
+        <div class="viz viz-chat" aria-hidden="true"><span class="bub bub--in">Where is my van?</span><span class="bub bub--out">2 km away — arriving in 6 min.</span></div>
+        <h3>Real human support</h3><p>Talk to a real person on call or chat whenever you need help.</p>
+      </article>
+      <article class="bento__item" data-reveal>
+        <div class="viz viz-pay" aria-hidden="true"><span>UPI</span><span>Cards</span><span>Wallets</span></div>
+        <h3>UPI, cards &amp; wallets</h3><p>Pay the way you already do. Free cancellation up to 1 hour before pickup.</p>
+      </article>
+    </div>
+
+    <!-- Testimonials (placeholders only) -->
+    <div class="testi" data-reveal>
+      <div class="testi__head">
+        <h3 class="h3">What early users say</h3>
+        <div class="testi__nav">
+          <button type="button" class="icon-btn" id="t-prev" aria-label="Previous testimonial"><svg class="ic"><use href="#i-left"/></svg></button>
+          <button type="button" class="icon-btn" id="t-next" aria-label="Next testimonial"><svg class="ic"><use href="#i-right"/></svg></button>
+        </div>
+      </div>
+      <div class="testi__viewport">
+        <div class="testi__track" id="t-track">
+          <figure class="testi__slide"><blockquote>[Placeholder — a real customer quote from the Coimbatore pilot will go here.]</blockquote><figcaption><span class="avatar-ph"></span><span><b>[Customer name]</b><small>[Student, Coimbatore]</small></span></figcaption></figure>
+          <figure class="testi__slide"><blockquote>[Placeholder — a real quote from a traveller using pickup &amp; delivery will go here.]</blockquote><figcaption><span class="avatar-ph"></span><span><b>[Customer name]</b><small>[Traveller]</small></span></figcaption></figure>
+          <figure class="testi__slide"><blockquote>[Placeholder — a real quote from a hotel, college or event partner will go here.]</blockquote><figcaption><span class="avatar-ph"></span><span><b>[Partner name]</b><small>[Partner organisation]</small></span></figcaption></figure>
+        </div>
+      </div>
+      <div class="testi__dots" id="t-dots" role="tablist" aria-label="Choose testimonial"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     12. ABOUT
+     ========================================================= -->
+<section class="section section--ice" id="about">
+  <div class="container">
+    <div class="about">
+      <div class="about__copy">
+        <p class="eyebrow" data-reveal>About</p>
+        <h2 class="h2" data-split>A cloakroom that comes to you.</h2>
+        <p class="lead" data-reveal>HoldMate is a smart mobile cloakroom from Coimbatore. We pick up luggage, keep it sealed in a smart locker inside a moving vehicle, and hand it back wherever you will be next, at the time you choose.</p>
+      </div>
+      <div class="pvm">
+        <article class="pvm__card" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="pvm__k">Purpose</span><p>To give people the freedom to travel without the burden of carrying luggage.</p></article>
+        <article class="pvm__card" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="pvm__k">Vision</span><p>To become India's most trusted travel convenience platform — making journeys lighter, safer and more connected.</p></article>
+        <article class="pvm__card" data-reveal data-tilt><div class="tilt-glow" aria-hidden="true"></div><span class="pvm__k">Mission</span><p>To build a smart network of secure luggage storage, pickup and travel convenience services, available whenever and wherever people travel.</p></article>
+      </div>
+    </div>
+    <figure class="founder" data-reveal>
+      <span class="founder__mark" aria-hidden="true">“</span>
+      <blockquote>Whenever you want, wherever you need — we will be there as your HoldMate.</blockquote>
+      <figcaption><span class="founder__avatar" aria-hidden="true">TA</span><span><b>T Asmar Nihash</b><small>Founder, HoldMate</small></span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- =========================================================
+     13. STATS
+     ========================================================= -->
+<section class="section section--dark stats-sec" id="stats">
+  <div class="container">
+    <div class="stats">
+      <div class="stat" data-reveal><b><span data-count="20">0</span></b><span>lockers per van</span></div>
+      <div class="stat" data-reveal><b><span data-count="15">0</span><small>km</small></b><span>delivery radius</span></div>
+      <div class="stat" data-reveal><b><span data-count="4">0</span></b><span>vehicle types</span></div>
+    </div>
+    <div class="partner" data-reveal>
+      <p>Hotel, college, event venue or travel business? Let's work together.</p>
+      <button type="button" class="btn btn--light" id="partner-btn" data-magnetic><span>Partner with HoldMate</span><svg class="ic"><use href="#i-arrow"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     14. ROUTES
+     ========================================================= -->
+<section class="section" id="routes">
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>Routes</p>
+      <h2 class="h2" data-split>Where we run.</h2>
+      <p class="lead" data-reveal>Tap a route to see it on the live map.</p>
+    </div>
+    <div class="routes">
+      <button type="button" class="route-card" data-show-route="loop" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="route-card__status is-live"><span class="pulse-dot"></span>Pilot · running now</span>
+        <h3>Coimbatore Junction loop</h3>
+        <p>Junction · Town Hall · Ukkadam · RS Puram · Gandhipuram · Race Course</p>
+        <svg class="route-card__line" viewBox="0 0 200 40" aria-hidden="true"><path d="M8 30 C40 30 50 10 90 10 S150 30 192 12"/></svg>
+        <span class="svc__more">Show on map <svg class="ic"><use href="#i-arrow"/></svg></span>
+      </button>
+      <button type="button" class="route-card" data-show-route="airport" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="route-card__status">Coming soon</span>
+        <h3>Airport &amp; Avinashi Road</h3>
+        <p>Junction · Lakshmi Mills · Peelamedu · Coimbatore Airport</p>
+        <svg class="route-card__line" viewBox="0 0 200 40" aria-hidden="true"><path d="M8 32 C60 32 80 22 120 18 S170 8 192 8"/></svg>
+        <span class="svc__more">Show on map <svg class="ic"><use href="#i-arrow"/></svg></span>
+      </button>
+      <button type="button" class="route-card" data-show-route="campus" data-reveal data-tilt>
+        <div class="tilt-glow" aria-hidden="true"></div>
+        <span class="route-card__status">Coming soon</span>
+        <h3>Colleges &amp; hostels</h3>
+        <p>Junction · RS Puram · Saibaba Colony · Vadavalli · PSG Tech</p>
+        <svg class="route-card__line" viewBox="0 0 200 40" aria-hidden="true"><path d="M8 10 C50 10 60 32 100 30 S160 12 192 26"/></svg>
+        <span class="svc__more">Show on map <svg class="ic"><use href="#i-arrow"/></svg></span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================
+     15. FAQ
+     ========================================================= -->
+<section class="section section--ice" id="faq">
+  <div class="container faq-wrap">
+    <div class="section-head">
+      <p class="eyebrow" data-reveal>FAQ</p>
+      <h2 class="h2" data-split>Questions, answered.</h2>
+      <p class="lead" data-reveal>Can't find what you need? Write to <a href="mailto:hello@holdmate.in">hello@holdmate.in</a>.</p>
+    </div>
+    <div class="faq" id="faq-list">
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">What does HoldMate mean?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>Hold + Mate. We hold your luggage, like a travel mate who carries it for you and meets you wherever you'll be next.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">How does a mobile cloakroom work?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>You book online. A captain picks up your bags, weighs, seals and photographs them, and locks them in their own smart locker inside a vehicle. The vehicle moves on its route, and we bring your bags to the place and time you chose.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">Which vehicle will come?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>We pick it automatically from your bag count and weight: a Bike for 1–2 small bags, an e-Auto for up to 8 bags, a Van for up to 20 bags, and a Truck for events and big groups.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">How do I get my bags back?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>When the captain arrives, share your 4-digit OTP or show your QR code. Bags are released only when it matches, and you can check the seal number before you accept.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">How is the price calculated?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>Price = time + distance + weight. A base fare of ₹49, ₹9 per km, ₹6 per hour (₹3 per hour after 24 hours) and ₹3 per kg above 5 kg. Scheduled runs are 15% cheaper, Express is 50% more. These are indicative pilot rates.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">How far do you deliver?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>Anywhere within 15 km of Coimbatore Junction. Use "Share my location" in the Live GPS section to check if you're inside the zone.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">Is my luggage safe?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>Yes. Bags are sealed with a numbered tag and photographed at pickup, each booking has its own locker, captains are verified, the vehicle is tracked by GPS and handover needs your OTP or QR code.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">What can't I store?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>No cash, jewellery or valuables, no perishable food, liquids that can leak, flammable or hazardous items, weapons, illegal goods or live animals.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">Can I cancel?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>Yes. Cancellation is free up to 1 hour before your pickup time.</p></div></div>
+      <div class="faq__item"><h3><button type="button" class="faq__q" aria-expanded="false">Do you work with hotels, colleges and events?<svg class="ic"><use href="#i-plus"/></svg></button></h3><div class="faq__a" hidden><p>Yes. We run luggage desks for hotels, move-in days for colleges and hostels, and parked cloakrooms for weddings and events. Use "Partner with HoldMate" to get in touch.</p></div></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- =========================================================
+     16. FOOTER
+     ========================================================= -->
+<footer class="footer section--dark">
+  <div class="container">
+    <div class="footer__cta">
+      <h2 class="footer__big" data-split>Lock Smart, Travel Light.</h2>
+      <button type="button" class="btn btn--primary btn--lg" data-book data-magnetic><span>Book your first pickup</span><svg class="ic"><use href="#i-arrow"/></svg></button>
+      <p class="footer__brandline">Whenever you want, wherever you need, we will be there as your HoldMate.</p>
+    </div>
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a href="#home" class="logo logo--light" aria-label="HoldMate home">
+          <svg class="logo__mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="currentColor"/><path d="M21 29v-5a11 11 0 0 1 22 0v5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><rect x="15" y="28" width="34" height="24" rx="6" fill="#fff"/><circle cx="32" cy="40" r="3.6" fill="#0B49C6"/></svg>
+          <span class="logo__text">Hold<b>Mate</b></span>
+        </a>
+        <p>India's first smart mobile cloakroom. Coimbatore, Tamil Nadu.</p>
+        <div class="socials">
+          <a href="#" aria-label="HoldMate on Instagram" data-toast="Social pages are coming soon."><svg class="ic"><use href="#i-instagram"/></svg></a>
+          <a href="#" aria-label="HoldMate on LinkedIn" data-toast="Social pages are coming soon."><svg class="ic"><use href="#i-linkedin"/></svg></a>
+          <a href="#" aria-label="HoldMate on X" data-toast="Social pages are coming soon."><svg class="ic"><use href="#i-x"/></svg></a>
+          <a href="#" aria-label="HoldMate on YouTube" data-toast="Social pages are coming soon."><svg class="ic"><use href="#i-youtube"/></svg></a>
+        </div>
+      </div>
+      <div class="footer__col"><h4>Company</h4><a href="#about">About</a><a href="#routes">Routes</a><a href="#fleet">Fleet</a><button type="button" class="link-btn" data-partner>Partner with us</button></div>
+      <div class="footer__col"><h4>Services</h4><button type="button" class="link-btn" data-service="pickup">Pickup &amp; delivery</button><button type="button" class="link-btn" data-service="store">Store &amp; hold</button><button type="button" class="link-btn" data-service="express">Express</button><button type="button" class="link-btn" data-service="events">Events &amp; weddings</button></div>
+      <div class="footer__col"><h4>Support</h4><a href="#gps" data-track-link>Track my bag</a><a href="#faq">FAQ</a><a href="#pricing">Pricing</a><a href="mailto:hello@holdmate.in">hello@holdmate.in</a></div>
+      <div class="footer__col"><h4>Legal</h4><a href="#" data-toast="Terms of service will be published soon.">Terms</a><a href="#" data-toast="Privacy policy will be published soon.">Privacy</a><a href="#" data-toast="Cancellation policy: free up to 1 hour before pickup.">Cancellation</a><a href="#" data-toast="The prohibited items list is in the FAQ.">Prohibited items</a></div>
+      <div class="footer__app">
+        <div class="qr-ph" id="app-qr" aria-hidden="true"></div>
+        <p><b>App coming soon</b><small>QR placeholder</small></p>
+      </div>
+    </div>
+    <div class="footer__bottom"><span>© <span id="year">2026</span> HoldMate, Coimbatore.</span><span>Lock Smart, Travel Light.</span></div>
+  </div>
+</footer>
+
+<!-- =========================================================
+     SERVICE DETAILS DRAWER
+     ========================================================= -->
+<div class="drawer" id="drawer" aria-hidden="true" inert>
+  <div class="drawer__scrim" data-close-drawer></div>
+  <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" data-lenis-prevent>
+    <button type="button" class="icon-btn drawer__close" data-close-drawer aria-label="Close details"><svg class="ic"><use href="#i-close"/></svg></button>
+    <div id="drawer-body"></div>
+  </aside>
+</div>
+
+<!-- =========================================================
+     BOOKING MODAL (3 steps)
+     ========================================================= -->
+<div class="modal" id="booking" aria-hidden="true" inert>
+  <div class="modal__scrim" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="bk-title" data-lenis-prevent>
+    <button type="button" class="icon-btn modal__close" data-close-modal aria-label="Close booking"><svg class="ic"><use href="#i-close"/></svg></button>
+    <div class="bk-head">
+      <h2 id="bk-title" class="h3">Book a pickup</h2>
+      <ol class="bk-progress" aria-label="Booking steps">
+        <li class="is-active"><span>1</span>Route</li>
+        <li><span>2</span>Bags &amp; details</li>
+        <li><span>3</span>Confirmed</li>
+      </ol>
+    </div>
+
+    <form id="bk-form" novalidate>
+      <div class="bk-steps">
+        <!-- Step 1 -->
+        <fieldset class="bk-step is-active" data-step="1">
+          <legend class="sr-only">Route</legend>
+          <div class="field">
+            <label for="b-from">Pickup location</label>
+            <div class="field__row">
+              <svg class="ic field__ic"><use href="#i-pin"/></svg>
+              <input id="b-from" list="places" autocomplete="off" placeholder="e.g. RS Puram" required />
+              <button type="button" class="gps-btn" data-gps-for="b-from" aria-label="Use my location for pickup"><svg class="ic"><use href="#i-target"/></svg><span>GPS</span></button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="b-to">Drop-off location</label>
+            <div class="field__row">
+              <svg class="ic field__ic"><use href="#i-pin"/></svg>
+              <input id="b-to" list="places" autocomplete="off" placeholder="e.g. Coimbatore Airport" required />
+              <button type="button" class="gps-btn" data-gps-for="b-to" aria-label="Use my location for drop-off"><svg class="ic"><use href="#i-target"/></svg><span>GPS</span></button>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="b-time">Pickup date &amp; time</label>
+              <div class="field__row"><svg class="ic field__ic"><use href="#i-calendar"/></svg><input id="b-time" type="datetime-local" required /></div>
+            </div>
+            <div class="field">
+              <label for="b-service">Service type</label>
+              <div class="field__row">
+                <svg class="ic field__ic"><use href="#i-box"/></svg>
+                <select id="b-service">
+                  <option value="standard">Pickup &amp; delivery</option>
+                  <option value="scheduled">Scheduled run (−15%)</option>
+                  <option value="express">Express (+50%)</option>
+                  <option value="store">Store &amp; hold</option>
+                  <option value="events">Events &amp; groups</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <p class="field-error" id="b-err-1" aria-live="polite"></p>
+          <div class="bk-actions">
+            <span class="muted small">Service zone: 15 km from Coimbatore Junction</span>
+            <button type="button" class="btn btn--primary" id="bk-next1"><span>Continue</span><svg class="ic"><use href="#i-arrow"/></svg></button>
+          </div>
+        </fieldset>
+
+        <!-- Step 2 -->
+        <fieldset class="bk-step" data-step="2">
+          <legend class="sr-only">Bags and details</legend>
+          <div class="field-grid field-grid--3">
+            <div class="field">
+              <span class="label" id="b-bags-label">Bags</span>
+              <div class="stepper" data-stepper data-min="1" data-max="60">
+                <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer bags"><svg class="ic"><use href="#i-minus"/></svg></button>
+                <input id="b-bags" type="number" inputmode="numeric" value="2" min="1" max="60" aria-labelledby="b-bags-label" />
+                <button type="button" class="stepper__btn" data-step="1" aria-label="More bags"><svg class="ic"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="b-kg">Weight (kg)</label>
+              <div class="field__row"><input id="b-kg" type="number" inputmode="decimal" min="1" max="500" value="15" /></div>
+            </div>
+            <div class="field">
+              <label for="b-hours">Hold (hours)</label>
+              <div class="field__row"><input id="b-hours" type="number" inputmode="numeric" min="1" max="48" value="4" /></div>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field">
+              <label for="b-name">Full name</label>
+              <div class="field__row"><svg class="ic field__ic"><use href="#i-user"/></svg><input id="b-name" autocomplete="name" placeholder="Your name" required /></div>
+            </div>
+            <div class="field">
+              <label for="b-phone">Mobile number</label>
+              <div class="field__row"><svg class="ic field__ic"><use href="#i-phone"/></svg><input id="b-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" required /></div>
+            </div>
+          </div>
+          <p class="bk-account" id="bk-account" hidden></p>
+          <div class="bk-quote" id="bk-quote" aria-live="polite"></div>
+          <p class="field-error" id="b-err-2" aria-live="polite"></p>
+          <div class="bk-actions">
+            <button type="button" class="btn btn--ghost-dark" id="bk-back2"><svg class="ic"><use href="#i-left"/></svg><span>Back</span></button>
+            <button type="submit" class="btn btn--primary" id="bk-confirm"><span>Confirm booking</span></button>
+          </div>
+        </fieldset>
+
+        <!-- Step 2b: phone login (only when not logged in) -->
+        <fieldset class="bk-step" data-step="otp">
+          <legend class="sr-only">Verify your mobile number</legend>
+          <div class="otp-intro">
+            <span class="otp-intro__ic"><svg class="ic"><use href="#i-phone"/></svg></span>
+            <div><b>Verify your mobile number</b><p class="muted small" id="b-otp-msg">We sent a 6-digit code to your phone.</p></div>
+          </div>
+          <div class="field">
+            <label for="b-otp">6-digit code</label>
+            <div class="field__row"><svg class="ic field__ic"><use href="#i-key"/></svg><input id="b-otp" class="mono otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="------" /></div>
+          </div>
+          <p class="muted small dev-note" id="b-otp-dev" hidden>Development mode: the code is printed in the server console.</p>
+          <p class="field-error" id="b-err-otp" aria-live="polite"></p>
+          <div class="bk-actions">
+            <div class="btn-row" style="margin:0">
+              <button type="button" class="btn btn--ghost-dark" id="bk-otp-back"><svg class="ic"><use href="#i-left"/></svg><span>Change number</span></button>
+              <button type="button" class="link-btn small" id="bk-otp-resend">Resend code</button>
+            </div>
+            <button type="button" class="btn btn--primary" id="bk-otp-verify"><span>Verify &amp; book</span></button>
+          </div>
+        </fieldset>
+
+        <!-- Step 3 -->
+        <div class="bk-step bk-done" data-step="3">
+          <svg class="check-anim" viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34"/><path d="M25 41l10 10 21-22"/></svg>
+          <h3 class="h3">Booking confirmed</h3>
+          <p class="muted">Your captain will arrive at the pickup time. Keep your OTP safe.</p>
+          <div class="bk-ticket">
+            <div class="bk-ticket__info">
+              <div><span>Booking ID</span><b class="mono" id="bd-id">HM-0000</b></div>
+              <div><span>Handover OTP</span><b class="mono" id="bd-otp">0000</b></div>
+              <div><span>Vehicle · locker</span><b id="bd-vehicle">—</b></div>
+              <div><span>Total</span><b id="bd-total">—</b></div>
+            </div>
+            <div class="bk-ticket__qr" id="bd-qr" aria-label="Handover QR pattern" role="img"></div>
+          </div>
+          <div class="bk-actions bk-actions--center">
+            <button type="button" class="btn btn--ghost-dark" id="bd-copy"><svg class="ic"><use href="#i-copy"/></svg><span>Copy ID</span></button>
+            <button type="button" class="btn btn--primary" id="bd-track"><svg class="ic"><use href="#i-target"/></svg><span>Track live</span></button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Place suggestions (filled from CONFIG.PLACES in js/booking.js) -->
+<datalist id="places"></datalist>
+
+<!-- Lenis smooth scroll (site still works if this fails to load) -->
+<script src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js" defer></script>
+<script src="js/api.js" defer></script>
+<script src="js/main.js" defer></script>
+<script src="js/booking.js" defer></script>
+<script src="js/gps.js" defer></script>
+</body>
+</html>

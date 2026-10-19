@@ -1,0 +1,262 @@
+###############################################################################
+# HoldMate API — requests for the VS Code "REST Client" extension (humao.rest-client)
+#
+# 1. npm run seed   (test accounts + fleet + demo booking HM-4821)
+# 2. npm run dev
+# 3. Click "Send Request" above each block, top to bottom.
+#
+# Login OTPs are printed in the SERVER CONSOLE (development mode).
+# Copy the 6-digit code into @otp below, then send the verify request.
+# REST Client remembers the hm_token cookie between requests automatically,
+# so whoever logged in last is the current user.
+###############################################################################
+
+@baseUrl = http://localhost:5000/api
+@customerPhone = 9876543210
+@captainPhone = 9000000002
+@adminPhone = 9000000001
+# paste the 6-digit login OTP from the server console here:
+@otp = 000000
+# paste the bookingId and 4-digit handoverOtp from "Create booking" here:
+@bookingId = HM-0000
+@handoverOtp = 0000
+
+### Health
+GET {{baseUrl}}/health
+
+###############################################################################
+# PUBLIC
+###############################################################################
+
+### Places, hub and service radius
+GET {{baseUrl}}/places
+
+### Quote — calculator style (distance from a slider)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+{ "serviceType": "standard", "distanceKm": 6, "hours": 4, "bags": 2, "weightKg": 15 }
+
+### Quote — real places (zone check + suggested vehicle)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+{
+  "serviceType": "scheduled",
+  "pickup": { "lat": 11.0168, "lng": 76.9675 },
+  "drop":   { "lat": 11.0300, "lng": 77.0434 },
+  "hours": 4, "bags": 4, "weightKg": 40
+}
+
+### Quote — store only (no distance charge)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+{ "serviceType": "store", "pickup": { "lat": 11.0089, "lng": 76.95 }, "hours": 10, "bags": 1, "weightKg": 5 }
+
+### Quote — events (₹1499 + ₹20/bag, truck)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+{ "serviceType": "events", "pickup": { "lat": 11.0005, "lng": 76.979 }, "hours": 6, "bags": 40, "weightKg": 300 }
+
+### Quote — outside the 15 km zone (Sulur)
+POST {{baseUrl}}/quote
+Content-Type: application/json
+
+{ "serviceType": "standard", "pickup": { "lat": 11.0257, "lng": 77.1263 }, "drop": { "lat": 11.0168, "lng": 76.9675 }, "hours": 4, "bags": 1, "weightKg": 5 }
+
+### Public tracking — demo booking
+GET {{baseUrl}}/track/HM-4821
+
+### Vehicles (public summary)
+GET {{baseUrl}}/vehicles
+
+### Lockers of van HM-01
+GET {{baseUrl}}/vehicles/HM-01/lockers
+
+###############################################################################
+# CUSTOMER LOGIN  (OTP is printed in the server console)
+###############################################################################
+
+### Request login OTP — customer
+POST {{baseUrl}}/auth/request-otp
+Content-Type: application/json
+
+{ "phone": "{{customerPhone}}" }
+
+### Verify OTP — customer (set @otp first)
+POST {{baseUrl}}/auth/verify-otp
+Content-Type: application/json
+
+{ "phone": "{{customerPhone}}", "otp": "{{otp}}", "name": "Asha Raman" }
+
+### Who am I?
+GET {{baseUrl}}/auth/me
+
+###############################################################################
+# CUSTOMER BOOKINGS
+###############################################################################
+
+### Create booking (price is recalculated on the server). Copy bookingId + handoverOtp into the variables above.
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+
+{
+  "serviceType": "standard",
+  "pickup": { "name": "Coimbatore Junction", "lat": 10.9965, "lng": 76.9667 },
+  "drop":   { "name": "RS Puram", "lat": 11.0089, "lng": 76.95 },
+  "pickupTime": "2030-01-15T10:30:00+05:30",
+  "holdHours": 4,
+  "bags": 2,
+  "weightKg": 18
+}
+
+### My bookings
+GET {{baseUrl}}/bookings
+
+### One of my bookings
+GET {{baseUrl}}/bookings/{{bookingId}}
+
+### Cancel (free up to 1 hour before pickup) — skip this if you want to test delivery
+PATCH {{baseUrl}}/bookings/{{bookingId}}/cancel
+Content-Type: application/json
+
+{}
+
+### Track my booking (public view)
+GET {{baseUrl}}/track/{{bookingId}}
+
+###############################################################################
+# CAPTAIN  (captain 9000000002 drives van HM-01 and truck HM-T1;
+#           captain 9000000003 drives bike HM-B4 and auto HM-A2)
+###############################################################################
+
+### Request login OTP — captain
+POST {{baseUrl}}/auth/request-otp
+Content-Type: application/json
+
+{ "phone": "{{captainPhone}}" }
+
+### Verify OTP — captain (set @otp first)
+POST {{baseUrl}}/auth/verify-otp
+Content-Type: application/json
+
+{ "phone": "{{captainPhone}}", "otp": "{{otp}}" }
+
+### Today's jobs
+GET {{baseUrl}}/captain/jobs
+
+### Status → picked_up (optional photo URLs)
+PATCH {{baseUrl}}/captain/bookings/{{bookingId}}/status
+Content-Type: application/json
+
+{ "status": "picked_up", "photos": ["https://example.com/bag-photo-1.jpg"] }
+
+### Status → in_locker
+PATCH {{baseUrl}}/captain/bookings/{{bookingId}}/status
+Content-Type: application/json
+
+{ "status": "in_locker" }
+
+### Status → on_the_way
+PATCH {{baseUrl}}/captain/bookings/{{bookingId}}/status
+Content-Type: application/json
+
+{ "status": "on_the_way" }
+
+### Live location of HM-01 (broadcast to everyone tracking a booking on this van)
+POST {{baseUrl}}/vehicles/HM-01/location
+Content-Type: application/json
+
+{ "lat": 11.0035, "lng": 76.9585, "speed": 22, "heading": 290 }
+
+### Status → arrived
+PATCH {{baseUrl}}/captain/bookings/{{bookingId}}/status
+Content-Type: application/json
+
+{ "status": "arrived" }
+
+### Handover with the customer's 4-digit OTP → delivered
+POST {{baseUrl}}/captain/bookings/{{bookingId}}/handover
+Content-Type: application/json
+
+{ "otp": "{{handoverOtp}}" }
+
+### Demo booking handover (seeded OTP 4821) — needs status "arrived" first
+PATCH {{baseUrl}}/captain/bookings/HM-4821/status
+Content-Type: application/json
+
+{ "status": "arrived" }
+
+###############################################################################
+# ADMIN
+###############################################################################
+
+### Request login OTP — admin
+POST {{baseUrl}}/auth/request-otp
+Content-Type: application/json
+
+{ "phone": "{{adminPhone}}" }
+
+### Verify OTP — admin (set @otp first)
+POST {{baseUrl}}/auth/verify-otp
+Content-Type: application/json
+
+{ "phone": "{{adminPhone}}", "otp": "{{otp}}" }
+
+### Stats
+GET {{baseUrl}}/admin/stats
+
+### Bookings (filters: status, date=YYYY-MM-DD in IST, page, limit)
+GET {{baseUrl}}/admin/bookings?status=booked&page=1&limit=20
+
+### Assign a booking to another vehicle
+PATCH {{baseUrl}}/admin/bookings/{{bookingId}}/assign
+Content-Type: application/json
+
+{ "vehicleId": "HM-T1" }
+
+### Vehicles (with captains and locker counts)
+GET {{baseUrl}}/admin/vehicles
+
+### Create vehicle (lockers are created automatically)
+POST {{baseUrl}}/admin/vehicles
+Content-Type: application/json
+
+{ "code": "HM-02", "type": "van", "lockerCount": 20, "status": "idle" }
+
+### Update vehicle
+PATCH {{baseUrl}}/admin/vehicles/HM-02
+Content-Type: application/json
+
+{ "status": "offline" }
+
+### Delete vehicle (only without active bookings)
+DELETE {{baseUrl}}/admin/vehicles/HM-02
+
+### Captains
+GET {{baseUrl}}/admin/captains
+
+### Create captain
+POST {{baseUrl}}/admin/captains
+Content-Type: application/json
+
+{ "name": "Captain M. Arun", "phone": "9000000004" }
+
+### Update captain (use an id from the list above)
+PATCH {{baseUrl}}/admin/captains/REPLACE_WITH_CAPTAIN_ID
+Content-Type: application/json
+
+{ "name": "Captain M. Arunkumar" }
+
+### Delete captain
+DELETE {{baseUrl}}/admin/captains/REPLACE_WITH_CAPTAIN_ID
+
+###############################################################################
+
+### Log out
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{}
